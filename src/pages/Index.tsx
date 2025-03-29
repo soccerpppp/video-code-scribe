@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Truck, BarChart4, Tool, FileText, Home } from "lucide-react";
+import { Truck, BarChart4, Wrench, FileText, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -26,7 +26,7 @@ const Index = () => {
     {
       id: "daily-activities",
       title: "กิจกรรมประจำวัน",
-      icon: <Tool className="h-6 w-6" />,
+      icon: <Wrench className="h-6 w-6" />,
       description: "บันทึกการซ่อม เปลี่ยน และหมุนยาง",
       onClick: () => navigate("/daily-activities"),
     },
