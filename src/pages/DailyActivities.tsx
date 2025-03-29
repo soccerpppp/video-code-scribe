@@ -9,6 +9,7 @@ import TireChange from "@/components/daily-activities/TireChange";
 import TireRotation from "@/components/daily-activities/TireRotation";
 import TreadDepthMeasurement from "@/components/daily-activities/TreadDepthMeasurement";
 import TireSale from "@/components/daily-activities/TireSale";
+import TireInstallation from "@/components/daily-activities/TireInstallation";
 
 const DailyActivities = () => {
   const navigate = useNavigate();
@@ -40,12 +41,13 @@ const DailyActivities = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-6 mb-8">
             <TabsTrigger value="repair">ซ่อมยาง</TabsTrigger>
             <TabsTrigger value="change">เปลี่ยนยาง</TabsTrigger>
             <TabsTrigger value="rotation">หมุนยาง</TabsTrigger>
             <TabsTrigger value="measurement">วัดความลึกดอกยาง</TabsTrigger>
             <TabsTrigger value="sale">ขายยาง</TabsTrigger>
+            <TabsTrigger value="installation">ติดตั้งยาง</TabsTrigger>
           </TabsList>
 
           <TabsContent value="repair">
@@ -66,6 +68,10 @@ const DailyActivities = () => {
 
           <TabsContent value="sale">
             <TireSale />
+          </TabsContent>
+
+          <TabsContent value="installation">
+            <TireInstallation />
           </TabsContent>
         </Tabs>
       </main>
