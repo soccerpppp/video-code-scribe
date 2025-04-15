@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
 import { supabase } from "@/integrations/supabase/client";
 import { Tire, Vehicle } from "@/types/models";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner"; // Fixed import
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,11 +23,21 @@ const RealTimeCalculation: React.FC = () => {
   // Fetch tires and vehicles on component mount
   React.useEffect(() => {
     const fetchData = async () => {
-      const { data: tiresData } = await supabase.from('tires').select('*');
-      const { data: vehiclesData } = await supabase.from('vehicles').select('*');
-      
-      if (tiresData) setTires(tiresData);
-      if (vehiclesData) setVehicles(vehiclesData);
+      try {
+        // Fix the table names in queries
+        const { data: tiresData, error: tiresError } = await supabase.from('tires').select('*');
+        const { data: vehiclesData, error: vehiclesError } = await supabase.from('vehicles').select('*');
+        
+        if (tiresError) throw tiresError;
+        if (vehiclesError) throw vehiclesError;
+        
+        // Fix type casting
+        if (tiresData) setTires(tiresData as Tire[]);
+        if (vehiclesData) setVehicles(vehiclesData as Vehicle[]);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast.error("ไม่สามารถโหลดข้อมูลได้");
+      }
     };
     
     fetchData();
@@ -128,7 +138,7 @@ const RealTimeCalculation: React.FC = () => {
                 <Input 
                   type="number" 
                   placeholder="กรอกระยะทาง" 
-                  value={currentMileage} 
+                  value={currentMileage === 0 ? "" : currentMileage} 
                   onChange={(e) => setCurrentMileage(Number(e.target.value))}
                 />
               </div>
@@ -138,7 +148,7 @@ const RealTimeCalculation: React.FC = () => {
                 <Input 
                   type="number" 
                   placeholder="กรอกความลึกดอกยาง" 
-                  value={treadDepth} 
+                  value={treadDepth === 0 ? "" : treadDepth} 
                   onChange={(e) => setTreadDepth(Number(e.target.value))}
                 />
               </div>
