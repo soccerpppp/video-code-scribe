@@ -53,6 +53,7 @@ const RealTimeCalculation: React.FC = () => {
   const [treadDepth, setTreadDepth] = useState<number>(0);
   const [result, setResult] = useState<TireWearCalculation | null>(null);
   const [showResultDialog, setShowResultDialog] = useState<boolean>(false);
+  const [analysisType, setAnalysisType] = useState<'predict_wear' | 'cluster_analysis' | 'time_series_prediction'>('predict_wear');
 
   const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
     return {
@@ -158,7 +159,8 @@ const RealTimeCalculation: React.FC = () => {
         currentMileage,
         treadDepth,
         purchaseDate: tire.purchaseDate,
-        initialTreadDepth: tire.type === 'new' ? 10 : 8
+        initialTreadDepth: tire.type === 'new' ? 10 : 8,
+        analysisType
       });
       
       const calculationData = {
@@ -171,7 +173,8 @@ const RealTimeCalculation: React.FC = () => {
         analysis_method: analysisResult.analysisMethod,
         analysis_result: analysisResult.analysisResult,
         recommendation: analysisResult.recommendation,
-        notes: "การวัดปกติ"
+        notes: "การวัดปกติ",
+        analysis_type: analysisType
       };
       
       const { data: calculationRecord, error: calculationError } = await supabase
@@ -282,6 +285,8 @@ const RealTimeCalculation: React.FC = () => {
                 onMileageChange={setCurrentMileage}
                 onTreadDepthChange={setTreadDepth}
                 onCalculate={handleCalculate}
+                analysisType={analysisType}
+                onAnalysisTypeChange={setAnalysisType}
               />
             </div>
             

@@ -91,4 +91,5 @@ export interface TireWearCalculation {
   notes?: string;
   created_at?: string;
   updated_at?: string;
+  analysis_type?: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
 }

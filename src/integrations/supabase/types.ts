@@ -55,6 +55,7 @@ export type Database = {
         Row: {
           analysis_method: string
           analysis_result: string
+          analysis_type: string
           calculation_date: string
           created_at: string
           current_age_days: number
@@ -71,6 +72,7 @@ export type Database = {
         Insert: {
           analysis_method: string
           analysis_result: string
+          analysis_type?: string
           calculation_date?: string
           created_at?: string
           current_age_days: number
@@ -87,6 +89,7 @@ export type Database = {
         Update: {
           analysis_method?: string
           analysis_result?: string
+          analysis_type?: string
           calculation_date?: string
           created_at?: string
           current_age_days?: number

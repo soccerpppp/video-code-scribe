@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +19,8 @@ interface TireWearCalculationFormProps {
   onMileageChange: (value: number) => void;
   onTreadDepthChange: (value: number) => void;
   onCalculate: () => void;
+  analysisType: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
+  onAnalysisTypeChange: (value: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction') => void;
 }
 
 export function TireWearCalculationForm({
@@ -34,7 +35,9 @@ export function TireWearCalculationForm({
   onVehicleChange,
   onMileageChange,
   onTreadDepthChange,
-  onCalculate
+  onCalculate,
+  analysisType,
+  onAnalysisTypeChange
 }: TireWearCalculationFormProps) {
   return (
     <Card>
@@ -95,6 +98,20 @@ export function TireWearCalculationForm({
               value={treadDepth === 0 ? "" : treadDepth} 
               onChange={(e) => onTreadDepthChange(Number(e.target.value))}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">วิธีคำนวณ</label>
+            <Select onValueChange={onAnalysisTypeChange} value={analysisType}>
+              <SelectTrigger>
+                <SelectValue placeholder="เลือกวิธีคำนวณ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="predict_wear">การทำนายการสึกหรอ</SelectItem>
+                <SelectItem value="cluster_analysis">การวิเคราะห์กลุ่ม</SelectItem>
+                <SelectItem value="time_series_prediction">การทำนายอนุกรมเวลา</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <Button 
