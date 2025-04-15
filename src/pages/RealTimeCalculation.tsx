@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +54,6 @@ const RealTimeCalculation: React.FC = () => {
   const [result, setResult] = useState<TireWearCalculation | null>(null);
   const [showResultDialog, setShowResultDialog] = useState<boolean>(false);
 
-  // Map DB responses to our interfaces
   const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
     return {
       id: dbTire.id,
@@ -65,7 +63,7 @@ const RealTimeCalculation: React.FC = () => {
       size: dbTire.size,
       type: dbTire.type as 'new' | 'retreaded',
       position: dbTire.position,
-      vehicle_id: dbTire.vehicle_id,
+      vehicleId: dbTire.vehicle_id,
       purchaseDate: dbTire.purchase_date,
       purchasePrice: dbTire.purchase_price,
       supplier: dbTire.supplier,
