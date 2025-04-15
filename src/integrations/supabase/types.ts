@@ -9,11 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      tire_positions: {
+        Row: {
+          created_at: string
+          id: string
+          position: string
+          tire_id: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position: string
+          tire_id?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: string
+          tire_id?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tire_positions_tire_id_fkey"
+            columns: ["tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tire_positions_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tire_wear_calculations: {
         Row: {
           analysis_method: string
           analysis_result: string
           calculation_date: string
+          created_at: string
           current_age_days: number
           current_mileage: number
           id: string
@@ -22,12 +65,14 @@ export type Database = {
           recommendation: string
           tire_id: string
           tread_depth_mm: number
+          updated_at: string
           vehicle_id: string
         }
         Insert: {
           analysis_method: string
           analysis_result: string
           calculation_date?: string
+          created_at?: string
           current_age_days: number
           current_mileage: number
           id?: string
@@ -36,12 +81,14 @@ export type Database = {
           recommendation: string
           tire_id: string
           tread_depth_mm: number
+          updated_at?: string
           vehicle_id: string
         }
         Update: {
           analysis_method?: string
           analysis_result?: string
           calculation_date?: string
+          created_at?: string
           current_age_days?: number
           current_mileage?: number
           id?: string
@@ -50,7 +97,130 @@ export type Database = {
           recommendation?: string
           tire_id?: string
           tread_depth_mm?: number
+          updated_at?: string
           vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tire_wear_calculations_tire_id_fkey"
+            columns: ["tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tire_wear_calculations_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tires: {
+        Row: {
+          brand: string
+          created_at: string
+          id: string
+          mileage: number
+          model: string
+          notes: string | null
+          position: string | null
+          purchase_date: string
+          purchase_price: number
+          serial_number: string
+          size: string
+          status: string
+          supplier: string
+          tread_depth: number
+          type: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          id?: string
+          mileage?: number
+          model: string
+          notes?: string | null
+          position?: string | null
+          purchase_date: string
+          purchase_price: number
+          serial_number: string
+          size: string
+          status: string
+          supplier: string
+          tread_depth: number
+          type: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          id?: string
+          mileage?: number
+          model?: string
+          notes?: string | null
+          position?: string | null
+          purchase_date?: string
+          purchase_price?: number
+          serial_number?: string
+          size?: string
+          status?: string
+          supplier?: string
+          tread_depth?: number
+          type?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tires_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          brand: string
+          created_at: string
+          current_mileage: number
+          id: string
+          model: string
+          notes: string | null
+          registration_number: string
+          type: string
+          updated_at: string
+          wheel_positions: number
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          current_mileage?: number
+          id?: string
+          model: string
+          notes?: string | null
+          registration_number: string
+          type: string
+          updated_at?: string
+          wheel_positions: number
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          current_mileage?: number
+          id?: string
+          model?: string
+          notes?: string | null
+          registration_number?: string
+          type?: string
+          updated_at?: string
+          wheel_positions?: number
         }
         Relationships: []
       }
