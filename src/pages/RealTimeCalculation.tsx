@@ -9,7 +9,36 @@ import { TireWearCalculationForm } from "@/components/tire-wear/TireWearCalculat
 import { TireWearResultDialog } from "@/components/tire-wear/TireWearResultDialog";
 import { TireWearHistoryPanel } from "@/components/tire-wear/TireWearHistoryPanel";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
-import { Tire, Vehicle, TirePosition, TireWearCalculation } from "@/types/models";
+import { Tire, Vehicle, TireWearCalculation } from "@/types/models";
+
+interface TireFromDB {
+  id: string;
+  serial_number: string;
+  brand: string;
+  model: string;
+  size: string;
+  type: string;
+  position: string | null;
+  vehicle_id: string | null;
+  purchase_date: string;
+  purchase_price: number;
+  supplier: string;
+  status: string;
+  tread_depth: number;
+  mileage: number;
+  notes?: string;
+}
+
+interface VehicleFromDB {
+  id: string;
+  registration_number: string;
+  brand: string;
+  model: string;
+  type: string;
+  wheel_positions: number;
+  current_mileage: number;
+  notes?: string;
+}
 
 const RealTimeCalculation: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +54,41 @@ const RealTimeCalculation: React.FC = () => {
   const [treadDepth, setTreadDepth] = useState<number>(0);
   const [result, setResult] = useState<TireWearCalculation | null>(null);
   const [showResultDialog, setShowResultDialog] = useState<boolean>(false);
+
+  // Map DB responses to our interfaces
+  const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
+    return {
+      id: dbTire.id,
+      serialNumber: dbTire.serial_number,
+      brand: dbTire.brand,
+      model: dbTire.model,
+      size: dbTire.size,
+      type: dbTire.type as 'new' | 'retreaded',
+      position: dbTire.position,
+      vehicle_id: dbTire.vehicle_id,
+      purchaseDate: dbTire.purchase_date,
+      purchasePrice: dbTire.purchase_price,
+      supplier: dbTire.supplier,
+      status: dbTire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
+      treadDepth: dbTire.tread_depth,
+      mileage: dbTire.mileage,
+      notes: dbTire.notes
+    };
+  };
+
+  const mapDbVehicleToVehicle = (dbVehicle: VehicleFromDB): Vehicle => {
+    return {
+      id: dbVehicle.id,
+      registrationNumber: dbVehicle.registration_number,
+      brand: dbVehicle.brand,
+      model: dbVehicle.model,
+      type: dbVehicle.type,
+      wheelPositions: dbVehicle.wheel_positions,
+      currentMileage: dbVehicle.current_mileage,
+      notes: dbVehicle.notes,
+      tirePositions: []
+    };
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -43,8 +107,8 @@ const RealTimeCalculation: React.FC = () => {
         if (tiresData.error) throw tiresData.error;
         if (calculationsData.error) throw calculationsData.error;
 
-        setVehicles(vehiclesData.data || []);
-        setTires(tiresData.data || []);
+        setVehicles(vehiclesData.data ? vehiclesData.data.map(mapDbVehicleToVehicle) : []);
+        setTires(tiresData.data ? tiresData.data.map(mapDbTireToTire) : []);
         setCalculations(calculationsData.data || []);
       } catch (error: any) {
         console.error("Error loading data from Supabase:", error);

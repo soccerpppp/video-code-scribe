@@ -1,4 +1,3 @@
-
 // โมเดลสำหรับข้อมูลยาง
 export interface Tire {
   id: string;
@@ -71,4 +70,25 @@ export interface ActivityLog {
   salePrice?: number; // กรณีขายยาง
   buyer?: string; // กรณีขายยาง
   notes?: string;
+}
+
+// โมเดลสำหรับการคำนวณความเสียหายของยาง
+export interface TireWearCalculation {
+  id: string;
+  calculation_date: string;
+  current_mileage: number;
+  current_age_days: number;
+  tread_depth_mm: number;
+  predicted_wear_percentage: number;
+  predicted_lifespan?: number;
+  wear_formula?: string;
+  status_code?: 'normal' | 'warning' | 'critical' | 'error';
+  tire_id: string;
+  vehicle_id: string;
+  analysis_method: string;
+  analysis_result: string;
+  recommendation: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }

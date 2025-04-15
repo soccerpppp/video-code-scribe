@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TireWearCalculation, Tire, Vehicle } from "@/types/models";
+import { TireWearCalculation } from "@/types/models";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
 
 interface TireWearResultDialogProps {

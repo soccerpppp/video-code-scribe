@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,29 +31,67 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
-interface Tire {
+interface TireFromDB {
   id: string;
   serial_number: string;
+  brand: string;
+  model: string;
+  size: string;
+  type: string;
+  position: string | null;
+  vehicle_id: string | null;
+  purchase_date: string;
+  purchase_price: number;
+  supplier: string;
+  status: string;
+  tread_depth: number;
+  mileage: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Tire {
+  id: string;
+  serialNumber: string;
   brand: string;
   model: string;
   size: string;
   type: 'new' | 'retreaded';
   position: string | null;
   vehicle_id: string | null;
-  purchase_date: string;
-  purchase_price: number;
+  purchaseDate: string;
+  purchasePrice: number;
   supplier: string;
   status: 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold';
-  tread_depth: number;
+  treadDepth: number;
   mileage: number;
   notes?: string;
 }
 
-interface Vehicle {
+interface VehicleFromDB {
   id: string;
   registration_number: string;
   brand: string;
   model: string;
+  type: string;
+  wheel_positions: number;
+  current_mileage: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Vehicle {
+  id: string;
+  registrationNumber: string;
+  brand: string;
+  model: string;
+  type: string;
+  wheelPositions: number;
+  currentMileage: number;
+  notes?: string;
+  tirePositions: [];
 }
 
 const TireManagement = () => {
@@ -70,7 +107,6 @@ const TireManagement = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentTire, setCurrentTire] = useState<Tire | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState({
     serial_number: "",
     brand: "",
@@ -87,27 +123,58 @@ const TireManagement = () => {
     notes: ""
   });
 
-  // Load data from Supabase
+  const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
+    return {
+      id: dbTire.id,
+      serialNumber: dbTire.serial_number,
+      brand: dbTire.brand,
+      model: dbTire.model,
+      size: dbTire.size,
+      type: dbTire.type as 'new' | 'retreaded',
+      position: dbTire.position,
+      vehicle_id: dbTire.vehicle_id,
+      purchaseDate: dbTire.purchase_date,
+      purchasePrice: dbTire.purchase_price,
+      supplier: dbTire.supplier,
+      status: dbTire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
+      treadDepth: dbTire.tread_depth,
+      mileage: dbTire.mileage,
+      notes: dbTire.notes
+    };
+  };
+
+  const mapDbVehicleToVehicle = (dbVehicle: VehicleFromDB): Vehicle => {
+    return {
+      id: dbVehicle.id,
+      registrationNumber: dbVehicle.registration_number,
+      brand: dbVehicle.brand,
+      model: dbVehicle.model,
+      type: dbVehicle.type,
+      wheelPositions: dbVehicle.wheel_positions,
+      currentMileage: dbVehicle.current_mileage,
+      notes: dbVehicle.notes,
+      tirePositions: []
+    };
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch tires
       const { data: tiresData, error: tiresError } = await supabase
         .from('tires')
         .select('*')
         .order('serial_number', { ascending: true });
       
       if (tiresError) throw tiresError;
-      setTires(tiresData || []);
+      setTires(tiresData ? tiresData.map(mapDbTireToTire) : []);
       
-      // Fetch vehicles
       const { data: vehiclesData, error: vehiclesError } = await supabase
         .from('vehicles')
-        .select('id, registration_number, brand, model')
+        .select('id, registration_number, brand, model, type, wheel_positions, current_mileage, notes, created_at, updated_at')
         .order('registration_number', { ascending: true });
       
       if (vehiclesError) throw vehiclesError;
-      setVehicles(vehiclesData || []);
+      setVehicles(vehiclesData ? vehiclesData.map(mapDbVehicleToVehicle) : []);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast({
@@ -124,7 +191,6 @@ const TireManagement = () => {
     fetchData();
   }, []);
 
-  // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-500';
@@ -136,7 +202,6 @@ const TireManagement = () => {
     }
   };
 
-  // Get status text
   const getStatusText = (status: string) => {
     switch (status) {
       case 'active': return 'ใช้งาน';
@@ -148,21 +213,17 @@ const TireManagement = () => {
     }
   };
 
-  // Filter tires based on search and status
   const filteredTires = tires.filter(tire => {
-    // Filter by search term
     const matchesSearch = 
-      tire.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tire.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tire.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tire.model.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Filter by status
     const matchesStatus = filterStatus === 'all' || tire.status === filterStatus;
     
     return matchesSearch && matchesStatus;
   });
 
-  // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -171,7 +232,6 @@ const TireManagement = () => {
     }));
   };
 
-  // Handle select changes
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -179,14 +239,12 @@ const TireManagement = () => {
     }));
   };
 
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
       if (currentTire) {
-        // Update existing tire
         const { error } = await supabase
           .from('tires')
           .update({
@@ -216,7 +274,6 @@ const TireManagement = () => {
         
         setIsEditDialogOpen(false);
       } else {
-        // Add new tire
         const { error } = await supabase
           .from('tires')
           .insert({
@@ -245,10 +302,8 @@ const TireManagement = () => {
         setIsAddDialogOpen(false);
       }
       
-      // Refresh tires list
       fetchData();
       
-      // Reset form
       resetForm();
     } catch (error: any) {
       console.error("Error saving tire:", error);
@@ -262,7 +317,6 @@ const TireManagement = () => {
     }
   };
 
-  // Handle delete tire
   const handleDelete = async () => {
     if (!currentTire) return;
     
@@ -280,7 +334,6 @@ const TireManagement = () => {
         description: "ลบข้อมูลยางเรียบร้อยแล้ว",
       });
       
-      // Refresh tires list
       fetchData();
       setIsDeleteDialogOpen(false);
     } catch (error: any) {
@@ -295,34 +348,31 @@ const TireManagement = () => {
     }
   };
 
-  // Open edit dialog with tire data
   const openEditDialog = (tire: Tire) => {
     setCurrentTire(tire);
     setFormData({
-      serial_number: tire.serial_number,
+      serial_number: tire.serialNumber,
       brand: tire.brand,
       model: tire.model,
       size: tire.size,
       type: tire.type,
       vehicle_id: tire.vehicle_id,
-      purchase_date: new Date(tire.purchase_date).toISOString().split('T')[0],
-      purchase_price: tire.purchase_price,
+      purchase_date: new Date(tire.purchaseDate).toISOString().split('T')[0],
+      purchase_price: tire.purchasePrice,
       supplier: tire.supplier,
       status: tire.status,
-      tread_depth: tire.tread_depth,
+      tread_depth: tire.treadDepth,
       mileage: tire.mileage,
       notes: tire.notes || ""
     });
     setIsEditDialogOpen(true);
   };
 
-  // Open delete confirmation dialog
   const openDeleteDialog = (tire: Tire) => {
     setCurrentTire(tire);
     setIsDeleteDialogOpen(true);
   };
 
-  // Reset form data
   const resetForm = () => {
     setFormData({
       serial_number: "",
@@ -342,23 +392,20 @@ const TireManagement = () => {
     setCurrentTire(null);
   };
 
-  // Close add dialog and reset form
   const closeAddDialog = () => {
     setIsAddDialogOpen(false);
     resetForm();
   };
 
-  // Close edit dialog and reset form
   const closeEditDialog = () => {
     setIsEditDialogOpen(false);
     resetForm();
   };
 
-  // Get vehicle name by ID
   const getVehicleName = (id: string | null) => {
     if (!id) return '-';
     const vehicle = vehicles.find(v => v.id === id);
-    return vehicle ? `${vehicle.registration_number} (${vehicle.brand} ${vehicle.model})` : '-';
+    return vehicle ? `${vehicle.registrationNumber} (${vehicle.brand} ${vehicle.model})` : '-';
   };
 
   return (
@@ -379,7 +426,7 @@ const TireManagement = () => {
               <SelectValue placeholder="สถานะทั้งหมด" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">สถานะทั้งหมด</SelectItem>
+              <SelectItem value="all">สถานะทั้งห���ด</SelectItem>
               <SelectItem value="active">ใช้งาน</SelectItem>
               <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
               <SelectItem value="retreading">หล่อดอก</SelectItem>
@@ -532,17 +579,17 @@ const TireManagement = () => {
                 <div className="grid gap-2">
                   <Label htmlFor="vehicle_id">ยานพาหนะที่ติดตั้ง</Label>
                   <Select 
-                    value={formData.vehicle_id || ""} 
-                    onValueChange={(v) => handleSelectChange('vehicle_id', v)}
+                    value={formData.vehicle_id || "none"} 
+                    onValueChange={(v) => handleSelectChange('vehicle_id', v === "none" ? "" : v)}
                   >
                     <SelectTrigger id="vehicle_id">
                       <SelectValue placeholder="เลือกยานพาหนะ (หากมี)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">ไม่มีการติดตั้ง</SelectItem>
+                      <SelectItem value="none">ไม่มีการติดตั้ง</SelectItem>
                       {vehicles.map(vehicle => (
                         <SelectItem key={vehicle.id} value={vehicle.id}>
-                          {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
+                          {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -619,11 +666,11 @@ const TireManagement = () => {
                 {filteredTires.length > 0 ? (
                   filteredTires.map((tire) => (
                     <TableRow key={tire.id}>
-                      <TableCell className="font-medium">{tire.serial_number}</TableCell>
+                      <TableCell className="font-medium">{tire.serialNumber}</TableCell>
                       <TableCell>{tire.brand} {tire.model}</TableCell>
                       <TableCell>{tire.size}</TableCell>
                       <TableCell>{getVehicleName(tire.vehicle_id)}</TableCell>
-                      <TableCell>{tire.tread_depth} มม.</TableCell>
+                      <TableCell>{tire.treadDepth} มม.</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(tire.status)}>
                           {getStatusText(tire.status)}
@@ -654,7 +701,6 @@ const TireManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
@@ -686,8 +732,6 @@ const TireManagement = () => {
                   />
                 </div>
               </div>
-              
-              {/* Similar form fields as in Add Dialog */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit_brand">ยี่ห้อ</Label>
@@ -795,17 +839,17 @@ const TireManagement = () => {
               <div className="grid gap-2">
                 <Label htmlFor="edit_vehicle_id">ยานพาหนะที่ติดตั้ง</Label>
                 <Select 
-                  value={formData.vehicle_id || ""} 
-                  onValueChange={(v) => handleSelectChange('vehicle_id', v)}
+                  value={formData.vehicle_id || "none"} 
+                  onValueChange={(v) => handleSelectChange('vehicle_id', v === "none" ? "" : v)}
                 >
                   <SelectTrigger id="edit_vehicle_id">
                     <SelectValue placeholder="เลือกยานพาหนะ (หากมี)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">ไม่มีการติดตั้ง</SelectItem>
+                    <SelectItem value="none">ไม่มีการติดตั้ง</SelectItem>
                     {vehicles.map(vehicle => (
                       <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
+                        {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -855,14 +899,13 @@ const TireManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>ยืนยันการลบข้อมูลยาง</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>คุณต้องการลบข้อมูลยางซีเรียล {currentTire?.serial_number} ใช่หรือไม่?</p>
+            <p>คุณต้องการลบข้อมูลยางซีเรียล {currentTire?.serialNumber} ใช่หรือไม่?</p>
             <p className="text-sm text-red-500 mt-2">การดำเนินการนี้ไม่สามารถเรียกคืนได้</p>
           </div>
           <div className="flex justify-end gap-2">
