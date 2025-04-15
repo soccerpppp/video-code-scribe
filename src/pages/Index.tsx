@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Truck, BarChart4, Wrench, FileText, Home } from "lucide-react";
+import { Truck, BarChart4, Wrench, FileText, Home, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -44,6 +43,13 @@ const Index = () => {
       description: "จัดการเอกสารที่เกี่ยวข้อง",
       onClick: () => navigate("/documents"),
     },
+    {
+      id: "realtime-calculation",
+      title: "คำนวณเรียวทาม",
+      icon: <Clock className="h-6 w-6" />,
+      description: "วิเคราะห์การสึกหรอของยาง",
+      onClick: () => navigate("/realtime-calculation"),
+    }
   ];
 
   return (

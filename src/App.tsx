@@ -9,6 +9,7 @@ import MasterData from "./pages/MasterData";
 import DailyActivities from "./pages/DailyActivities";
 import Reports from "./pages/Reports";
 import Documents from "./pages/Documents";
+import RealTimeCalculation from "./pages/RealTimeCalculation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/daily-activities" element={<DailyActivities />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/documents" element={<Documents />} />
+          <Route path="/realtime-calculation" element={<RealTimeCalculation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
