@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
 import { supabase } from "@/integrations/supabase/client";
 import { Tire, Vehicle } from "@/types/models";
-import { toast } from "sonner"; // Import toast directly from sonner
+import { toast } from "sonner"; 
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -20,31 +20,74 @@ const RealTimeCalculation: React.FC = () => {
   const [currentMileage, setCurrentMileage] = useState<number>(0);
   const [treadDepth, setTreadDepth] = useState<number>(0);
 
-  // Fetch tires and vehicles on component mount
+  // Use mock data since the tables don't exist yet
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        // Create separate queries for tires and vehicles tables
-        const { data: tiresData, error: tiresError } = await supabase
-          .from('tires')
-          .select('*');
+        // Mock tire data
+        const mockTires: Tire[] = [
+          {
+            id: "t1",
+            serialNumber: "TH12345678",
+            brand: "Michelin",
+            model: "Pilot Sport 4",
+            size: "215/55R17",
+            type: "new",
+            purchaseDate: new Date().toISOString(),
+            purchasePrice: 3500,
+            supplier: "Michelin Thailand",
+            status: "active",
+            treadDepth: 7.5,
+            mileage: 0
+          },
+          {
+            id: "t2",
+            serialNumber: "BG87654321",
+            brand: "Bridgestone",
+            model: "Turanza",
+            size: "205/65R16",
+            type: "new",
+            purchaseDate: new Date().toISOString(),
+            purchasePrice: 3200,
+            supplier: "Bridgestone Thailand",
+            status: "active",
+            treadDepth: 8.0,
+            mileage: 0
+          }
+        ];
         
-        const { data: vehiclesData, error: vehiclesError } = await supabase
-          .from('vehicles')
-          .select('*');
+        // Mock vehicle data
+        const mockVehicles: Vehicle[] = [
+          {
+            id: "v1",
+            registrationNumber: "กข 1234 กรุงเทพ",
+            type: "รถกระบะ",
+            brand: "Toyota",
+            model: "Hilux Revo",
+            wheelPositions: 4,
+            currentMileage: 15000,
+            tirePositions: [
+              { position: "หน้าซ้าย", tireId: "t1" },
+              { position: "หน้าขวา", tireId: "t2" }
+            ]
+          },
+          {
+            id: "v2",
+            registrationNumber: "ฮต 5678 กรุงเทพ",
+            type: "รถเก๋ง",
+            brand: "Honda",
+            model: "Civic",
+            wheelPositions: 4,
+            currentMileage: 25000,
+            tirePositions: []
+          }
+        ];
+
+        setTires(mockTires);
+        setVehicles(mockVehicles);
         
-        if (tiresError) throw tiresError;
-        if (vehiclesError) throw vehiclesError;
-        
-        // Properly handle types with conditional checks
-        if (tiresData) {
-          setTires(tiresData as Tire[]);
-        }
-        if (vehiclesData) {
-          setVehicles(vehiclesData as Vehicle[]);
-        }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error setting up mock data:", error);
         toast.error("ไม่สามารถโหลดข้อมูลได้");
       }
     };
