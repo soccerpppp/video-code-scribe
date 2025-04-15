@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
 import { supabase } from "@/integrations/supabase/client";
 import { Tire, Vehicle } from "@/types/models";
-import { toast } from "sonner"; // Fixed import
+import { toast } from "sonner"; // Import toast directly from sonner
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -24,16 +24,25 @@ const RealTimeCalculation: React.FC = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fix the table names in queries
-        const { data: tiresData, error: tiresError } = await supabase.from('tires').select('*');
-        const { data: vehiclesData, error: vehiclesError } = await supabase.from('vehicles').select('*');
+        // Create separate queries for tires and vehicles tables
+        const { data: tiresData, error: tiresError } = await supabase
+          .from('tires')
+          .select('*');
+        
+        const { data: vehiclesData, error: vehiclesError } = await supabase
+          .from('vehicles')
+          .select('*');
         
         if (tiresError) throw tiresError;
         if (vehiclesError) throw vehiclesError;
         
-        // Fix type casting
-        if (tiresData) setTires(tiresData as Tire[]);
-        if (vehiclesData) setVehicles(vehiclesData as Vehicle[]);
+        // Properly handle types with conditional checks
+        if (tiresData) {
+          setTires(tiresData as Tire[]);
+        }
+        if (vehiclesData) {
+          setVehicles(vehiclesData as Vehicle[]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error("ไม่สามารถโหลดข้อมูลได้");
