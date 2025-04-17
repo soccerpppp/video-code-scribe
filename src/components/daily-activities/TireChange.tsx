@@ -47,19 +47,29 @@ interface TireChangeLog {
 
 interface Vehicle {
   id: string;
-  registrationNumber: string;
+  registration_number: string;
   brand: string;
   model: string;
 }
 
 interface Tire {
   id: string;
-  serialNumber: string;
+  serial_number: string;
   brand: string;
   size: string;
   type: string;
   status: string;
-  vehicleId?: string;
+  vehicle_id?: string | null;
+}
+
+interface VehicleDisplay {
+  id: string;
+  name: string;
+}
+
+interface TireDisplay {
+  id: string;
+  name: string;
 }
 
 const TireChange = () => {
@@ -68,9 +78,9 @@ const TireChange = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
-  const [vehicles, setVehicles] = useState<{id: string; name: string}[]>([]);
-  const [tires, setTires] = useState<{id: string; name: string}[]>([]);
-  const [newTires, setNewTires] = useState<{id: string; name: string}[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleDisplay[]>([]);
+  const [tires, setTires] = useState<TireDisplay[]>([]);
+  const [newTires, setNewTires] = useState<TireDisplay[]>([]);
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -111,43 +121,43 @@ const TireChange = () => {
       // Fetch all tires
       const { data: tiresData, error: tiresError } = await supabase
         .from('tires')
-        .select('id, serial_number, brand, model, size, type, status, vehicle_id')
+        .select('id, serial_number, brand, size, type, status, vehicle_id')
         .order('serial_number', { ascending: true });
       
       if (tiresError) throw tiresError;
       
       // Transform the fetched data
-      const formattedVehicles = vehiclesData.map((vehicle: Vehicle) => ({
+      const formattedVehicles: VehicleDisplay[] = (vehiclesData || []).map((vehicle: Vehicle) => ({
         id: vehicle.id,
-        name: `${vehicle.registrationNumber} (${vehicle.brand})`
+        name: `${vehicle.registration_number} (${vehicle.brand})`
       }));
       
-      const formattedTires = tiresData.map((tire: Tire) => ({
+      const formattedTires: TireDisplay[] = (tiresData || []).map((tire: Tire) => ({
         id: tire.id,
-        name: `${tire.serialNumber} (${tire.brand} ${tire.size}) - ${tire.status}`
+        name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.status}`
       }));
 
       // Filter tires for new ones (active, not installed)
-      const formattedNewTires = tiresData
-        .filter((tire: Tire) => tire.status === 'active' && !tire.vehicleId)
+      const formattedNewTires: TireDisplay[] = (tiresData || [])
+        .filter((tire: Tire) => tire.status === 'active' && !tire.vehicle_id)
         .map((tire: Tire) => ({
           id: tire.id,
-          name: `${tire.serialNumber} (${tire.brand} ${tire.size}) - ${tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}`
+          name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}`
         }));
       
       // Format change logs to the component's format
-      const formattedChanges: TireChangeLog[] = changeLogs?.map((log: ActivityLog) => ({
+      const formattedChanges: TireChangeLog[] = (changeLogs || []).map((log: any) => ({
         id: log.id,
         date: log.date,
-        vehicleId: log.vehicleId || '',
-        tireId: log.tireId || '',
-        newTireId: log.newTireId,
+        vehicleId: log.vehicle_id || '',
+        tireId: log.tire_id || '',
+        newTireId: log.new_tire_id,
         mileage: log.mileage || 0,
         cost: log.cost || 0,
         description: log.description || '',
-        performedBy: log.performedBy || '',
+        performedBy: log.performed_by || '',
         notes: log.notes || ''
-      })) || [];
+      }));
       
       setChanges(formattedChanges);
       setVehicles(formattedVehicles);
@@ -196,14 +206,14 @@ const TireChange = () => {
       // Create activity log for tire change
       const activityLog = {
         date: formData.date,
-        activityType: 'change',
-        tireId: formData.oldTireId,
-        vehicleId: formData.vehicleId,
+        activity_type: 'change',
+        tire_id: formData.oldTireId,
+        vehicle_id: formData.vehicleId,
         mileage: formData.mileage,
         cost: formData.cost,
         description: formData.description,
-        performedBy: formData.performedBy,
-        newTireId: formData.newTireId,
+        performed_by: formData.performedBy,
+        new_tire_id: formData.newTireId,
         notes: formData.notes
       };
       
@@ -218,8 +228,8 @@ const TireChange = () => {
         .from('tires')
         .update({ 
           status: 'maintenance', 
-          vehicleId: null,
-          position: null,
+          vehicle_id: null,
+          position: null
         })
         .eq('id', formData.oldTireId);
         
@@ -230,7 +240,7 @@ const TireChange = () => {
         .from('tires')
         .update({ 
           status: 'active', 
-          vehicleId: formData.vehicleId,
+          vehicle_id: formData.vehicleId
         })
         .eq('id', formData.newTireId);
         
