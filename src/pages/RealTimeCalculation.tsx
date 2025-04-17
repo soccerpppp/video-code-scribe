@@ -55,7 +55,7 @@ interface TireWearCalculationFromDB {
   analysis_method: string;
   notes: string;
   analysis_result: string;
-  analysis_type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
+  analysis_type: string; // Changed from the specific union type to string to match DB response
 }
 
 const RealTimeCalculation: React.FC = () => {
@@ -109,6 +109,15 @@ const RealTimeCalculation: React.FC = () => {
   };
 
   const mapDbCalculationToCalculation = (calc: TireWearCalculationFromDB): TireWearCalculation => {
+    // Validate and ensure analysis_type is one of the allowed values
+    let validAnalysisType: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' = 'predict_wear';
+    
+    if (calc.analysis_type === 'predict_wear' || 
+        calc.analysis_type === 'cluster_analysis' || 
+        calc.analysis_type === 'time_series_prediction') {
+      validAnalysisType = calc.analysis_type;
+    }
+    
     return {
       id: calc.id,
       calculation_date: calc.calculation_date,
@@ -124,7 +133,7 @@ const RealTimeCalculation: React.FC = () => {
       analysis_result: calc.analysis_result,
       recommendation: calc.recommendation,
       notes: calc.notes,
-      analysis_type: calc.analysis_type
+      analysis_type: validAnalysisType
     };
   };
 
@@ -247,8 +256,9 @@ const RealTimeCalculation: React.FC = () => {
         if (vehicleUpdateError) throw vehicleUpdateError;
       }
       
+      // Create a proper typed TireWearCalculation result
       const calculationResult: TireWearCalculation = {
-        ...calculationRecord,
+        ...mapDbCalculationToCalculation(calculationRecord),
         predicted_lifespan: analysisResult.predictedLifespan,
         wear_formula: analysisResult.wearFormula,
         status_code: analysisResult.statusCode
