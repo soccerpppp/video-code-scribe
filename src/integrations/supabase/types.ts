@@ -9,6 +9,88 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          activity_type: string
+          buyer: string | null
+          cost: number | null
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          measurement_value: number | null
+          mileage: number | null
+          new_tire_id: string | null
+          notes: string | null
+          performed_by: string | null
+          position: string | null
+          sale_price: number | null
+          tire_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          buyer?: string | null
+          cost?: number | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          measurement_value?: number | null
+          mileage?: number | null
+          new_tire_id?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          position?: string | null
+          sale_price?: number | null
+          tire_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          buyer?: string | null
+          cost?: number | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          measurement_value?: number | null
+          mileage?: number | null
+          new_tire_id?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          position?: string | null
+          sale_price?: number | null
+          tire_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_new_tire_id_fkey"
+            columns: ["new_tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_tire_id_fkey"
+            columns: ["tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tire_positions: {
         Row: {
           created_at: string

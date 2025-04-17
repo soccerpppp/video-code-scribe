@@ -9,4 +9,96 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Create a custom type that includes tables not in the auto-generated types
+type CustomSchema = {
+  Tables: {
+    activity_logs: {
+      Row: {
+        id: string;
+        date: string;
+        activity_type: string;
+        tire_id: string | null;
+        vehicle_id: string | null;
+        position: string | null;
+        mileage: number | null;
+        cost: number | null;
+        description: string | null;
+        performed_by: string | null;
+        measurement_value: number | null;
+        new_tire_id: string | null;
+        sale_price: number | null;
+        buyer: string | null;
+        notes: string | null;
+        created_at: string;
+        updated_at: string;
+      };
+      Insert: {
+        id?: string;
+        date?: string;
+        activity_type: string;
+        tire_id?: string | null;
+        vehicle_id?: string | null;
+        position?: string | null;
+        mileage?: number | null;
+        cost?: number | null;
+        description?: string | null;
+        performed_by?: string | null;
+        measurement_value?: number | null;
+        new_tire_id?: string | null;
+        sale_price?: number | null;
+        buyer?: string | null;
+        notes?: string | null;
+        created_at?: string;
+        updated_at?: string;
+      };
+      Update: {
+        id?: string;
+        date?: string;
+        activity_type?: string;
+        tire_id?: string | null;
+        vehicle_id?: string | null;
+        position?: string | null;
+        mileage?: number | null;
+        cost?: number | null;
+        description?: string | null;
+        performed_by?: string | null;
+        measurement_value?: number | null;
+        new_tire_id?: string | null;
+        sale_price?: number | null;
+        buyer?: string | null;
+        notes?: string | null;
+        created_at?: string;
+        updated_at?: string;
+      };
+      Relationships: [
+        {
+          foreignKeyName: "activity_logs_tire_id_fkey";
+          columns: ["tire_id"];
+          isOneToOne: false;
+          referencedRelation: "tires";
+          referencedColumns: ["id"];
+        },
+        {
+          foreignKeyName: "activity_logs_vehicle_id_fkey";
+          columns: ["vehicle_id"];
+          isOneToOne: false;
+          referencedRelation: "vehicles";
+          referencedColumns: ["id"];
+        },
+        {
+          foreignKeyName: "activity_logs_new_tire_id_fkey";
+          columns: ["new_tire_id"];
+          isOneToOne: false;
+          referencedRelation: "tires";
+          referencedColumns: ["id"];
+        }
+      ];
+    };
+  };
+}
+
+// Extend the Database type with custom tables
+type ExtendedDatabase = Database & CustomSchema;
+
+// Export the extended client
+export const supabase = createClient<ExtendedDatabase>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);

@@ -32,8 +32,21 @@ import { ActivityLog } from "@/types/models";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
+interface TireChangeLog {
+  id: string;
+  date: string;
+  vehicleId: string;
+  tireId: string;
+  newTireId: string | null;
+  mileage: number;
+  cost: number;
+  description: string;
+  performedBy: string;
+  notes: string;
+}
+
 const TireChange = () => {
-  const [changes, setChanges] = useState<ActivityLog[]>([]);
+  const [changes, setChanges] = useState<TireChangeLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -81,7 +94,7 @@ const TireChange = () => {
       // Fetch all tires
       const { data: tiresData, error: tiresError } = await supabase
         .from('tires')
-        .select('id, serial_number, brand, model, size, type, status')
+        .select('id, serial_number, brand, model, size, type, status, vehicle_id')
         .order('serial_number', { ascending: true });
       
       if (tiresError) throw tiresError;
@@ -105,7 +118,21 @@ const TireChange = () => {
           name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}`
         }));
       
-      setChanges(changeLogs || []);
+      // Format change logs to the component's format
+      const formattedChanges: TireChangeLog[] = changeLogs?.map(log => ({
+        id: log.id,
+        date: log.date,
+        vehicleId: log.vehicle_id || '',
+        tireId: log.tire_id || '',
+        newTireId: log.new_tire_id,
+        mileage: log.mileage || 0,
+        cost: log.cost || 0,
+        description: log.description || '',
+        performedBy: log.performed_by || '',
+        notes: log.notes || ''
+      })) || [];
+      
+      setChanges(formattedChanges);
       setVehicles(formattedVehicles);
       setTires(formattedTires);
       setNewTires(formattedNewTires);

@@ -52,6 +52,9 @@ interface Tire {
   size: string;
   type: 'new' | 'retreaded';
   status: 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold';
+  treadDepth?: number;
+  mileage?: number;
+  vehicle_id?: string | null;
 }
 
 interface Vehicle {
@@ -167,7 +170,10 @@ const TireInstallation = () => {
         model: tire.model,
         size: tire.size,
         type: tire.type as 'new' | 'retreaded',
-        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold'
+        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
+        treadDepth: tire.tread_depth,
+        mileage: tire.mileage,
+        vehicle_id: tire.vehicle_id
       }));
       
       const formattedStockTires: Tire[] = stockTiresData.map(tire => ({
@@ -177,14 +183,18 @@ const TireInstallation = () => {
         model: tire.model,
         size: tire.size,
         type: tire.type as 'new' | 'retreaded',
-        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold'
+        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
+        treadDepth: tire.tread_depth,
+        mileage: tire.mileage,
+        vehicle_id: tire.vehicle_id
       }));
       
+      // Format installation logs
       const formattedInstallations: Installation[] = installLogs?.map(log => ({
         id: log.id,
         date: log.date,
-        tireId: log.tire_id,
-        vehicleId: log.vehicle_id,
+        tireId: log.tire_id || '',
+        vehicleId: log.vehicle_id || '',
         position: log.position || '',
         mileage: log.mileage || 0,
         description: log.description || '',
@@ -821,7 +831,7 @@ const TireInstallation = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stockTires.length > 0 ? (
+                    {stockTires.filter(tire => !tire.vehicle_id).length > 0 ? (
                       stockTires
                         .filter(tire => !tire.vehicle_id)
                         .map((tire) => (

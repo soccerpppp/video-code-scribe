@@ -65,10 +65,10 @@ const TireHistory = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch all activity logs
+      // Fetch all activity logs from the new activity_logs table
       const { data: logs, error: logsError } = await supabase
         .from('activity_logs')
-        .select('id, date, activity_type, description, vehicle_id, tire_id, mileage, cost, notes, performed_by, buyer')
+        .select('*')
         .order('date', { ascending: false });
       
       if (logsError) throw logsError;
@@ -111,7 +111,7 @@ const TireHistory = () => {
           vehicle: vehicle ? vehicle.registration_number : '-',
           vehicleId: log.vehicle_id || '',
           tireSerial: tire ? tire.serial_number : '-',
-          tireId: log.tire_id,
+          tireId: log.tire_id || '',
           mileage: log.mileage || 0,
           cost: log.cost || 0,
           notes: log.notes || (log.buyer ? `ผู้ซื้อ: ${log.buyer}` : '') || (log.performed_by ? `ผู้ดำเนินการ: ${log.performed_by}` : '')
