@@ -1,3 +1,4 @@
+
 // โมเดลสำหรับข้อมูลยาง
 export interface Tire {
   id: string;
@@ -72,6 +73,18 @@ export interface ActivityLog {
   notes?: string;
 }
 
+// โมเดลสำหรับผลลัพธ์การวิเคราะห์การสึกหรอของยาง
+export interface TireWearAnalysisResult {
+  analysisMethod: string;
+  currentAgeDays: number;
+  predictedWearPercentage: number;
+  predictedLifespan?: number;
+  analysisResult?: string;
+  recommendation?: string;
+  wearFormula?: string;
+  statusCode?: 'normal' | 'warning' | 'critical' | 'error';
+}
+
 // โมเดลสำหรับการคำนวณความเสียหายของยาง
 export interface TireWearCalculation {
   id: string;
@@ -91,5 +104,5 @@ export interface TireWearCalculation {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  analysis_type?: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
+  analysis_type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
 }
