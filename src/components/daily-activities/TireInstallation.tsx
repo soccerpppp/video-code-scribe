@@ -1,908 +1,850 @@
 
 import { useState, useEffect } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogTrigger, 
-  DialogFooter,
-  DialogClose 
+  DialogTrigger,
+  DialogDescription
 } from "@/components/ui/dialog";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Check, X, Save, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { Vehicle, Tire } from "@/types/models";
+import {
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle,
+  CardDescription
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
+import { Plus, FileText, Loader2, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/components/ui/use-toast";
+
+interface Tire {
+  id: string;
+  serialNumber: string;
+  brand: string;
+  model: string;
+  size: string;
+  type: 'new' | 'retreaded';
+  status: 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold';
+}
+
+interface Vehicle {
+  id: string;
+  registrationNumber: string;
+  brand: string;
+  model: string;
+}
+
+interface Installation {
+  id: string;
+  date: string;
+  tireId: string;
+  vehicleId: string;
+  position: string;
+  mileage: number;
+  description: string;
+  performedBy: string;
+  notes: string;
+}
 
 const TireInstallation = () => {
-  const queryClient = useQueryClient();
-  
-  const [selectedVehicle, setSelectedVehicle] = useState<string>("");
-  const [selectedTire, setSelectedTire] = useState<string>("");
-  const [selectedPosition, setSelectedPosition] = useState<string>("");
-  const [installationType, setInstallationType] = useState<"new" | "replace">("new");
-  const [mileage, setMileage] = useState<string>("");
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [installations, setInstallations] = useState<Installation[]>([]);
   const [availableTires, setAvailableTires] = useState<Tire[]>([]);
-  const [installedTires, setInstalledTires] = useState<{position: string, tireId: string, serialNumber: string}[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [stockTires, setStockTires] = useState<Tire[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   
-  // Fetch vehicles from Supabase
-  const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery({
-    queryKey: ['vehicles'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*');
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data.map(vehicle => ({
-        id: vehicle.id,
-        registrationNumber: vehicle.registration_number,
-        type: vehicle.type,
-        brand: vehicle.brand,
-        model: vehicle.model,
-        wheelPositions: vehicle.wheel_positions,
-        currentMileage: vehicle.current_mileage,
-        tirePositions: [],
-        notes: vehicle.notes
-      }));
-    }
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isNewTireDialogOpen, setIsNewTireDialogOpen] = useState(false);
+  const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState("installation");
+  
+  const [installFormData, setInstallFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    vehicleId: "",
+    tireId: "",
+    position: "",
+    mileage: 0,
+    description: "",
+    performedBy: "",
+    notes: ""
   });
   
-  // Fetch tires from Supabase
-  const { data: tires = [], isLoading: isLoadingTires } = useQuery({
-    queryKey: ['tires'],
-    queryFn: async () => {
-      const { data, error } = await supabase
+  const [newTireFormData, setNewTireFormData] = useState({
+    serialNumber: "",
+    brand: "",
+    model: "",
+    size: "",
+    type: "new" as 'new' | 'retreaded',
+    purchaseDate: new Date().toISOString().split('T')[0],
+    purchasePrice: 0,
+    supplier: "",
+    treadDepth: 10,
+    notes: ""
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch installation logs
+      const { data: installLogs, error: installError } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('activity_type', 'installation')
+        .order('date', { ascending: false });
+      
+      if (installError) throw installError;
+      
+      // Fetch vehicles
+      const { data: vehiclesData, error: vehiclesError } = await supabase
+        .from('vehicles')
+        .select('id, registration_number, brand, model, wheel_positions')
+        .order('registration_number', { ascending: true });
+      
+      if (vehiclesError) throw vehiclesError;
+      
+      // Fetch available tires
+      const { data: tiresData, error: tiresError } = await supabase
         .from('tires')
-        .select('*');
+        .select('*')
+        .is('vehicle_id', null)
+        .eq('status', 'active')
+        .order('serial_number', { ascending: true });
       
-      if (error) {
-        throw error;
-      }
+      if (tiresError) throw tiresError;
       
-      return data.map(tire => ({
+      // Fetch all tires in stock
+      const { data: stockTiresData, error: stockError } = await supabase
+        .from('tires')
+        .select('*')
+        .order('serial_number', { ascending: true });
+      
+      if (stockError) throw stockError;
+      
+      // Transform the fetched data
+      const formattedVehicles: Vehicle[] = vehiclesData.map(vehicle => ({
+        id: vehicle.id,
+        registrationNumber: vehicle.registration_number,
+        brand: vehicle.brand,
+        model: vehicle.model
+      }));
+      
+      const formattedTires: Tire[] = tiresData.map(tire => ({
         id: tire.id,
         serialNumber: tire.serial_number,
         brand: tire.brand,
         model: tire.model,
         size: tire.size,
         type: tire.type as 'new' | 'retreaded',
-        position: tire.position,
-        vehicleId: tire.vehicle_id,
-        purchaseDate: tire.purchase_date,
-        purchasePrice: tire.purchase_price,
-        supplier: tire.supplier,
-        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
-        treadDepth: tire.tread_depth,
-        mileage: tire.mileage,
-        notes: tire.notes
+        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold'
       }));
-    }
-  });
-
-  // Fetch tire positions for selected vehicle
-  const { data: tirePositions = [], isLoading: isLoadingTirePositions } = useQuery({
-    queryKey: ['tirePositions', selectedVehicle],
-    queryFn: async () => {
-      if (!selectedVehicle) return [];
       
-      const { data, error } = await supabase
-        .from('tire_positions')
-        .select('*')
-        .eq('vehicle_id', selectedVehicle);
+      const formattedStockTires: Tire[] = stockTiresData.map(tire => ({
+        id: tire.id,
+        serialNumber: tire.serial_number,
+        brand: tire.brand,
+        model: tire.model,
+        size: tire.size,
+        type: tire.type as 'new' | 'retreaded',
+        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold'
+      }));
       
-      if (error) {
-        throw error;
-      }
+      const formattedInstallations: Installation[] = installLogs?.map(log => ({
+        id: log.id,
+        date: log.date,
+        tireId: log.tire_id,
+        vehicleId: log.vehicle_id,
+        position: log.position || '',
+        mileage: log.mileage || 0,
+        description: log.description || '',
+        performedBy: log.performed_by || '',
+        notes: log.notes || ''
+      })) || [];
       
-      return data;
-    },
-    enabled: !!selectedVehicle
-  });
-  
-  // Update vehicle mileage mutation
-  const updateVehicleMileageMutation = useMutation({
-    mutationFn: async ({ vehicleId, mileage }: { vehicleId: string, mileage: number }) => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .update({ current_mileage: mileage })
-        .eq('id', vehicleId)
-        .select();
+      setInstallations(formattedInstallations);
+      setVehicles(formattedVehicles);
+      setAvailableTires(formattedTires);
+      setStockTires(formattedStockTires);
       
-      if (error) {
-        throw error;
-      }
-      
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-    }
-  });
-  
-  // Update tire installation mutation
-  const updateTireInstallationMutation = useMutation({
-    mutationFn: async ({ tireId, vehicleId, position, mileage }: { 
-      tireId: string, 
-      vehicleId: string, 
-      position: string,
-      mileage: number
-    }) => {
-      // Update tire with vehicle_id and position
-      const { data: tireData, error: tireError } = await supabase
-        .from('tires')
-        .update({ 
-          vehicle_id: vehicleId, 
-          position: position,
-          mileage: mileage
-        })
-        .eq('id', tireId)
-        .select();
-      
-      if (tireError) {
-        throw tireError;
-      }
-      
-      // Update tire_positions table
-      const { data: positionData, error: positionError } = await supabase
-        .from('tire_positions')
-        .update({ tire_id: tireId })
-        .eq('vehicle_id', vehicleId)
-        .eq('position', position)
-        .select();
-      
-      if (positionError) {
-        // If the position entry doesn't exist, create it
-        const { data: newPositionData, error: newPositionError } = await supabase
-          .from('tire_positions')
-          .insert({ 
-            vehicle_id: vehicleId, 
-            position: position,
-            tire_id: tireId
-          })
-          .select();
-        
-        if (newPositionError) {
-          throw newPositionError;
-        }
-        
-        return newPositionData;
-      }
-      
-      return positionData;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tires'] });
-      queryClient.invalidateQueries({ queryKey: ['tirePositions'] });
-    }
-  });
-
-  // ฟังก์ชันสำหรับกรองยางที่ไม่ได้ติดตั้ง
-  useEffect(() => {
-    // กรองยางที่ยังไม่ได้ติดตั้ง (vehicleId เป็น undefined)
-    if (tires) {
-      const uninstalledTires = tires.filter(tire => !tire.vehicleId);
-      setAvailableTires(uninstalledTires);
-    }
-  }, [tires]);
-
-  // ฟังก์ชันสำหรับเลือกรถ
-  const handleVehicleSelect = (vehicleId: string) => {
-    setSelectedVehicle(vehicleId);
-    
-    // รีเซ็ตค่าเมื่อเปลี่ยนรถ
-    setInstalledTires([]);
-    setSelectedPosition("");
-    setSelectedTire("");
-    
-    // หารถที่เลือก
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    if (vehicle) {
-      setMileage(vehicle.currentMileage.toString());
-      
-      // Load tire positions if available
-      if (tirePositions.length > 0) {
-        const positions = tirePositions.filter(tp => tp.vehicle_id === vehicleId);
-        const installedTiresList = positions.map(tp => {
-          const tire = tires.find(t => t.id === tp.tire_id);
-          return {
-            position: tp.position,
-            tireId: tp.tire_id || "",
-            serialNumber: tire ? tire.serialNumber : "ไม่มียาง"
-          };
-        });
-        
-        setInstalledTires(installedTiresList);
-      } else {
-        // Create default tire positions based on wheel_positions
-        const defaultPositions = createDefaultTirePositions(vehicle);
-        setInstalledTires(defaultPositions);
-      }
-    }
-  };
-  
-  // Create default tire positions based on vehicle type
-  const createDefaultTirePositions = (vehicle: Vehicle) => {
-    const positions = [];
-    
-    if (vehicle.wheelPositions === 6) {
-      positions.push({ position: "หน้าซ้าย", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หน้าขวา", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังซ้ายนอก", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังซ้ายใน", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังขวานอก", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังขวาใน", tireId: "", serialNumber: "ไม่มียาง" });
-    } else if (vehicle.wheelPositions === 10) {
-      positions.push({ position: "หน้าซ้าย", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หน้าขวา", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังซ้ายนอก (1)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังซ้ายใน (1)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังขวานอก (1)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังขวาใน (1)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังซ้ายนอก (2)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังซ้ายใน (2)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังขวานอก (2)", tireId: "", serialNumber: "ไม่มียาง" });
-      positions.push({ position: "หลังขวาใน (2)", tireId: "", serialNumber: "ไม่มียาง" });
-    } else {
-      // For other types, create positions based on wheelPositions
-      for (let i = 1; i <= vehicle.wheelPositions; i++) {
-        positions.push({ position: `ตำแหน่งที่ ${i}`, tireId: "", serialNumber: "ไม่มียาง" });
-      }
-    }
-    
-    return positions;
-  };
-
-  // ฟังก์ชันสำหรับเลือกตำแหน่ง
-  const handlePositionSelect = (position: string) => {
-    setSelectedPosition(position);
-  };
-
-  // ฟังก์ชันสำหรับเลือกยาง
-  const handleTireSelect = (tireId: string) => {
-    setSelectedTire(tireId);
-  };
-
-  // ฟังก์ชันสำหรับเพิ่มยางในตำแหน่งที่เลือก
-  const handleInstallTire = () => {
-    if (!selectedVehicle || !selectedPosition || !selectedTire || !mileage) {
-      toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
-      return;
-    }
-
-    // หารถและยางที่เลือก
-    const vehicle = vehicles.find(v => v.id === selectedVehicle);
-    const tire = availableTires.find(t => t.id === selectedTire);
-
-    if (!vehicle || !tire) {
-      toast.error("ไม่พบข้อมูลรถหรือยาง");
-      return;
-    }
-
-    // อัปเดตรายการยางที่ติดตั้ง
-    const updatedInstalledTires = [...installedTires];
-    const tireIndex = updatedInstalledTires.findIndex(t => t.position === selectedPosition);
-    
-    if (tireIndex !== -1) {
-      updatedInstalledTires[tireIndex].tireId = selectedTire;
-      updatedInstalledTires[tireIndex].serialNumber = tire.serialNumber;
-    }
-
-    setInstalledTires(updatedInstalledTires);
-    
-    // รีเซ็ตค่าหลังติดตั้ง
-    setSelectedPosition("");
-    setSelectedTire("");
-
-    toast.success(`ติดตั้งยาง ${tire.serialNumber} ในตำแหน่ง ${selectedPosition} สำเร็จ`);
-  };
-
-  // ฟังก์ชันสำหรับบันทึกการติดตั้งยางทั้งหมด
-  const handleSaveAllInstallations = async () => {
-    if (!selectedVehicle || !mileage) {
-      toast.error("กรุณาเลือกรถและระบุเลขไมล์");
-      return;
-    }
-
-    // ตรวจสอบว่ามีการติดตั้งยางหรือไม่
-    const hasInstalledTires = installedTires.some(tire => tire.tireId !== "");
-    
-    if (!hasInstalledTires) {
-      toast.error("ยังไม่มีการติดตั้งยาง");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      // Update vehicle mileage
-      await updateVehicleMileageMutation.mutateAsync({
-        vehicleId: selectedVehicle,
-        mileage: parseInt(mileage)
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถดึงข้อมูลได้",
+        variant: "destructive"
       });
-      
-      // Update each tire installation
-      for (const tire of installedTires) {
-        if (tire.tireId) {
-          await updateTireInstallationMutation.mutateAsync({
-            tireId: tire.tireId,
-            vehicleId: selectedVehicle,
-            position: tire.position,
-            mileage: parseInt(mileage)
-          });
-        }
-      }
-      
-      toast.success("บันทึกการติดตั้งยางสำเร็จ");
-      
-      // รีเซ็ตค่าหลังบันทึก
-      setSelectedVehicle("");
-      setInstalledTires([]);
-      setMileage("");
-      setSelectedPosition("");
-      setSelectedTire("");
-      
-    } catch (error) {
-      console.error("Error saving tire installations:", error);
-      toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // สร้างตำแหน่งล้อสำหรับการเลือก
-  const getWheelPositions = () => {
-    if (!selectedVehicle) return [];
-    
-    return installedTires.map(tire => ({
-      value: tire.position,
-      label: tire.position
+  const handleInstallFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setInstallFormData(prev => ({
+      ...prev,
+      [name]: name === 'mileage' ? Number(value) : value
     }));
   };
 
-  // สร้างแผนผังตำแหน่งยาง (Truck Tire Diagram)
-  const renderTireDiagram = () => {
-    if (!selectedVehicle) return null;
-    
-    const vehicle = vehicles.find(v => v.id === selectedVehicle);
-    if (!vehicle) return null;
+  const handleNewTireFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewTireFormData(prev => ({
+      ...prev,
+      [name]: ['purchasePrice', 'treadDepth'].includes(name) ? Number(value) : value
+    }));
+  };
 
-    // ตำแหน่งของล้อ (เรียงตามตำแหน่งจริงบนรถ)
-    const frontPositions = installedTires.filter(tp => tp.position.includes("หน้า"));
-    const rear1Positions = installedTires.filter(tp => tp.position.includes("(1)"));
-    const rear2Positions = installedTires.filter(tp => tp.position.includes("(2)"));
-    
-    const positionGroups = {
-      front: frontPositions,
-      rear1: rear1Positions,
-      rear2: rear2Positions
-    };
+  const handleSelectChange = (formType: 'install' | 'newTire', name: string, value: string) => {
+    if (formType === 'install') {
+      setInstallFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      setNewTireFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
 
-    // รายละเอียดรถ
-    const vehicleDetails = `${vehicle.registrationNumber} - ${vehicle.brand} ${vehicle.model}`;
+  const handleInstallTire = async () => {
+    if (!installFormData.vehicleId || !installFormData.tireId || !installFormData.position) {
+      toast({
+        title: "ข้อมูลไม่ครบถ้วน",
+        description: "กรุณาเลือกรถ ยาง และตำแหน่ง",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // ประเภทรถ และจำนวนล้อ
-    const vehicleTypeAndWheels = `${vehicle.type} - ${vehicle.wheelPositions} ล้อ`;
+    setIsSubmitting(true);
+    try {
+      // Create activity log for installation
+      const activityLog = {
+        date: installFormData.date,
+        activity_type: 'installation',
+        tire_id: installFormData.tireId,
+        vehicle_id: installFormData.vehicleId,
+        position: installFormData.position,
+        mileage: installFormData.mileage,
+        description: installFormData.description,
+        performed_by: installFormData.performedBy,
+        notes: installFormData.notes
+      };
+      
+      const { error: logError } = await supabase
+        .from('activity_logs')
+        .insert(activityLog);
+        
+      if (logError) throw logError;
+      
+      // Update tire status and attach to vehicle
+      const { error: tireError } = await supabase
+        .from('tires')
+        .update({ 
+          status: 'active', 
+          vehicle_id: installFormData.vehicleId,
+          position: installFormData.position,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', installFormData.tireId);
+        
+      if (tireError) throw tireError;
+      
+      toast({
+        title: "บันทึกสำเร็จ",
+        description: "บันทึกการติดตั้งยางเรียบร้อยแล้ว"
+      });
+      
+      // Reset form and refresh data
+      setInstallFormData({
+        date: new Date().toISOString().split('T')[0],
+        vehicleId: "",
+        tireId: "",
+        position: "",
+        mileage: 0,
+        description: "",
+        performedBy: "",
+        notes: ""
+      });
+      
+      setIsInstallDialogOpen(false);
+      fetchData();
+      
+    } catch (error: any) {
+      console.error("Error saving installation:", error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message || "ไม่สามารถบันทึกข้อมูลได้",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddNewTire = async () => {
+    if (!newTireFormData.serialNumber || !newTireFormData.brand || !newTireFormData.model || !newTireFormData.size) {
+      toast({
+        title: "ข้อมูลไม่ครบถ้วน",
+        description: "กรุณากรอกข้อมูลยางให้ครบถ้วน",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    return (
-      <Card className="mt-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-center">{vehicleDetails}</CardTitle>
-          <p className="text-center text-sm text-muted-foreground">{vehicleTypeAndWheels}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="relative bg-green-200 border-2 border-green-400 rounded-lg p-4 mx-auto w-full max-w-lg h-[300px]">
-            {/* ส่วนหัวรถ */}
-            <div className="absolute top-[20px] left-1/2 transform -translate-x-1/2 w-20 h-16 bg-white border-2 border-gray-400 rounded-t-lg"></div>
-            
-            {/* ตัวรถ */}
-            <div className="absolute top-[80px] left-1/2 transform -translate-x-1/2 w-40 h-[200px] bg-gray-200 border-2 border-gray-400"></div>
-            
-            {/* ล้อหน้า */}
-            {positionGroups.front.length > 0 && (
-              <div className="absolute top-[50px] left-1/2 transform -translate-x-1/2 flex justify-between w-[180px]">
-                {positionGroups.front.map((tp, index) => {
-                  const isLeft = tp.position.includes("ซ้าย");
-                  
-                  return (
-                    <div 
-                      key={index}
-                      className={`w-14 h-14 rounded-lg flex items-center justify-center 
-                                border-4 ${selectedPosition === tp.position ? 'border-blue-500' : 'border-red-800'} 
-                                bg-red-200 cursor-pointer text-center relative`}
-                      onClick={() => handlePositionSelect(tp.position)}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-lg font-bold">{isLeft ? 1 : 2}</span>
-                      </div>
-                      {tp.tireId && (
-                        <div className="absolute -bottom-6 text-xs font-semibold bg-white px-1 rounded border">
-                          {tp.serialNumber.substring(tp.serialNumber.length - 4)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
-            {/* ล้อหลังแถวแรก */}
-            {positionGroups.rear1.length > 0 && (
-              <div className="absolute top-[130px] left-1/2 transform -translate-x-1/2 flex justify-between w-[220px]">
-                <div className="flex flex-col gap-1">
-                  {positionGroups.rear1.filter(tp => tp.position.includes("ซ้าย")).map((tp, index) => {
-                    const positionNumber = tp.position.includes("นอก") ? 3 : 4;
-                    
-                    return (
-                      <div 
-                        key={index}
-                        className={`w-12 h-12 rounded-lg flex items-center justify-center 
-                                  border-4 ${selectedPosition === tp.position ? 'border-blue-500' : 'border-red-800'} 
-                                  bg-red-200 cursor-pointer text-center relative`}
-                        onClick={() => handlePositionSelect(tp.position)}
-                      >
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-lg font-bold">{positionNumber}</span>
-                        </div>
-                        {tp.tireId && (
-                          <div className="absolute -right-16 text-xs font-semibold bg-white px-1 rounded border">
-                            {tp.serialNumber.substring(tp.serialNumber.length - 4)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-col gap-1">
-                  {positionGroups.rear1.filter(tp => tp.position.includes("ขวา")).map((tp, index) => {
-                    const positionNumber = tp.position.includes("นอก") ? 5 : 6;
-                    
-                    return (
-                      <div 
-                        key={index}
-                        className={`w-12 h-12 rounded-lg flex items-center justify-center 
-                                  border-4 ${selectedPosition === tp.position ? 'border-blue-500' : 'border-red-800'} 
-                                  bg-red-200 cursor-pointer text-center relative`}
-                        onClick={() => handlePositionSelect(tp.position)}
-                      >
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-lg font-bold">{positionNumber}</span>
-                        </div>
-                        {tp.tireId && (
-                          <div className="absolute -left-16 text-xs font-semibold bg-white px-1 rounded border">
-                            {tp.serialNumber.substring(tp.serialNumber.length - 4)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            {/* ล้อหลังแถวสอง */}
-            {positionGroups.rear2.length > 0 && (
-              <div className="absolute top-[210px] left-1/2 transform -translate-x-1/2 flex justify-between w-[220px]">
-                <div className="flex flex-col gap-1">
-                  {positionGroups.rear2.filter(tp => tp.position.includes("ซ้าย")).map((tp, index) => {
-                    const positionNumber = tp.position.includes("นอก") ? 7 : 8;
-                    
-                    return (
-                      <div 
-                        key={index}
-                        className={`w-12 h-12 rounded-lg flex items-center justify-center 
-                                  border-4 ${selectedPosition === tp.position ? 'border-blue-500' : 'border-red-800'} 
-                                  bg-red-200 cursor-pointer text-center relative`}
-                        onClick={() => handlePositionSelect(tp.position)}
-                      >
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-lg font-bold">{positionNumber}</span>
-                        </div>
-                        {tp.tireId && (
-                          <div className="absolute -right-16 text-xs font-semibold bg-white px-1 rounded border">
-                            {tp.serialNumber.substring(tp.serialNumber.length - 4)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-col gap-1">
-                  {positionGroups.rear2.filter(tp => tp.position.includes("ขวา")).map((tp, index) => {
-                    const positionNumber = tp.position.includes("นอก") ? 9 : 10;
-                    
-                    return (
-                      <div 
-                        key={index}
-                        className={`w-12 h-12 rounded-lg flex items-center justify-center 
-                                  border-4 ${selectedPosition === tp.position ? 'border-blue-500' : 'border-red-800'} 
-                                  bg-red-200 cursor-pointer text-center relative`}
-                        onClick={() => handlePositionSelect(tp.position)}
-                      >
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-lg font-bold">{positionNumber}</span>
-                        </div>
-                        {tp.tireId && (
-                          <div className="absolute -left-16 text-xs font-semibold bg-white px-1 rounded border">
-                            {tp.serialNumber.substring(tp.serialNumber.length - 4)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            {/* คำแนะนำ */}
-            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-xs text-center w-full px-2">
-              <p className="text-red-600 font-bold">หมายเหตุ: คลิกที่ล้อเพื่อเลือกตำแหน่งการติดตั้งยาง</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    setIsSubmitting(true);
+    try {
+      // Add new tire to inventory
+      const newTire = {
+        serial_number: newTireFormData.serialNumber,
+        brand: newTireFormData.brand,
+        model: newTireFormData.model,
+        size: newTireFormData.size,
+        type: newTireFormData.type,
+        purchase_date: newTireFormData.purchaseDate,
+        purchase_price: newTireFormData.purchasePrice,
+        supplier: newTireFormData.supplier || "ไม่ระบุ",
+        status: 'active',
+        tread_depth: newTireFormData.treadDepth,
+        mileage: 0,
+        notes: newTireFormData.notes
+      };
+      
+      const { error: tireError } = await supabase
+        .from('tires')
+        .insert(newTire);
+        
+      if (tireError) throw tireError;
+      
+      toast({
+        title: "บันทึกสำเร็จ",
+        description: "เพิ่มยางใหม่เข้าคลังเรียบร้อยแล้ว"
+      });
+      
+      // Reset form and refresh data
+      setNewTireFormData({
+        serialNumber: "",
+        brand: "",
+        model: "",
+        size: "",
+        type: "new",
+        purchaseDate: new Date().toISOString().split('T')[0],
+        purchasePrice: 0,
+        supplier: "",
+        treadDepth: 10,
+        notes: ""
+      });
+      
+      setIsNewTireDialogOpen(false);
+      fetchData();
+      
+    } catch (error: any) {
+      console.error("Error adding new tire:", error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message || "ไม่สามารถบันทึกข้อมูลได้",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getTireName = (tireId: string) => {
+    const tire = stockTires.find(t => t.id === tireId);
+    return tire ? `${tire.serialNumber} (${tire.brand} ${tire.size})` : '-';
+  };
+
+  const getVehicleName = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    return vehicle ? `${vehicle.registrationNumber} (${vehicle.brand} ${vehicle.model})` : '-';
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return 'ใช้งาน';
+      case 'maintenance': return 'ซ่อมบำรุง';
+      case 'retreading': return 'หล่อดอก';
+      case 'expired': return 'หมดอายุ';
+      case 'sold': return 'ขายแล้ว';
+      default: return status;
+    }
+  };
+
+  const getPositionOptions = (vehicleId: string) => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return [];
+    
+    const positions = [];
+    for (let i = 1; i <= 2; i++) {
+      positions.push({ value: `front-${i === 1 ? 'left' : 'right'}`, label: `หน้า${i === 1 ? 'ซ้าย' : 'ขวา'}` });
+    }
+    
+    for (let i = 1; i <= 4; i++) {
+      positions.push({ 
+        value: `rear-${i <= 2 ? 'left' : 'right'}-${i % 2 === 1 ? 'inner' : 'outer'}`, 
+        label: `หลัง${i <= 2 ? 'ซ้าย' : 'ขวา'}-${i % 2 === 1 ? 'ใน' : 'นอก'}` 
+      });
+    }
+    
+    return positions;
   };
 
   return (
     <div>
-      <Tabs defaultValue="new" onValueChange={(value) => setInstallationType(value as "new" | "replace")}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="new">ติดตั้งยางครั้งแรก</TabsTrigger>
-          <TabsTrigger value="replace">เปลี่ยน/สลับยางบางตำแหน่ง</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full mb-6">
+          <TabsTrigger value="installation" className="w-1/2">การติดตั้งยาง</TabsTrigger>
+          <TabsTrigger value="inventory" className="w-1/2">คลังยาง</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="new">
-          <Card>
-            <CardHeader>
-              <CardTitle>ติดตั้งยางใหม่ทั้งคัน</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="vehicle">รถที่ต้องการติดตั้งยาง</Label>
-                    <Select
-                      value={selectedVehicle}
-                      onValueChange={handleVehicleSelect}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={isLoadingVehicles ? "กำลังโหลด..." : "เลือกรถ"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+        <TabsContent value="installation">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">บันทึกการติดตั้งยาง</h2>
+            <Dialog open={isInstallDialogOpen} onOpenChange={setIsInstallDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  บันทึกการติดตั้งยางใหม่
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[625px]">
+                <DialogHeader>
+                  <DialogTitle>บันทึกการติดตั้งยาง</DialogTitle>
+                  <DialogDescription>
+                    ติดตั้งยางเข้ากับรถคันที่ต้องการและระบุตำแหน่งการติดตั้ง
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="date">วันที่ติดตั้ง</Label>
+                      <Input 
+                        id="date" 
+                        name="date" 
+                        type="date" 
+                        value={installFormData.date}
+                        onChange={handleInstallFormChange}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="vehicle">รถ</Label>
+                      <Select 
+                        value={installFormData.vehicleId} 
+                        onValueChange={(value) => handleSelectChange("install", "vehicleId", value)}
+                      >
+                        <SelectTrigger id="vehicle">
+                          <SelectValue placeholder="เลือกรถ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vehicles.map(vehicle => (
+                            <SelectItem key={vehicle.id} value={vehicle.id}>
+                              {vehicle.registrationNumber} ({vehicle.brand} {vehicle.model})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="tire">ยางที่ติดตั้ง</Label>
+                      <Select 
+                        value={installFormData.tireId} 
+                        onValueChange={(value) => handleSelectChange("install", "tireId", value)}
+                      >
+                        <SelectTrigger id="tire">
+                          <SelectValue placeholder="เลือกยาง" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTires.length > 0 ? (
+                            availableTires.map(tire => (
+                              <SelectItem key={tire.id} value={tire.id}>
+                                {tire.serialNumber} ({tire.brand} {tire.size})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem disabled value="none">
+                              ไม่มียางพร้อมติดตั้ง
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="position">ตำแหน่ง</Label>
+                      <Select 
+                        value={installFormData.position} 
+                        onValueChange={(value) => handleSelectChange("install", "position", value)}
+                        disabled={!installFormData.vehicleId}
+                      >
+                        <SelectTrigger id="position">
+                          <SelectValue placeholder="เลือกตำแหน่ง" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getPositionOptions(installFormData.vehicleId).map(pos => (
+                            <SelectItem key={pos.value} value={pos.value}>
+                              {pos.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="mileage">เลขไมล์ (กม.)</Label>
+                      <Input 
+                        id="mileage" 
+                        name="mileage" 
+                        type="number" 
+                        placeholder="เช่น 30000" 
+                        value={installFormData.mileage || ""}
+                        onChange={handleInstallFormChange}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="performedBy">ผู้ดำเนินการ</Label>
+                      <Input 
+                        id="performedBy" 
+                        name="performedBy" 
+                        placeholder="เช่น นายสมศักดิ์" 
+                        value={installFormData.performedBy}
+                        onChange={handleInstallFormChange}
+                      />
+                    </div>
+                  </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="mileage">เลขไมล์ปัจจุบัน (กม.)</Label>
-                    <Input
-                      id="mileage"
-                      type="number"
-                      value={mileage}
-                      onChange={(e) => setMileage(e.target.value)}
-                      placeholder="กรอกเลขไมล์ปัจจุบัน"
+                    <Label htmlFor="description">รายละเอียดการติดตั้ง</Label>
+                    <Input 
+                      id="description" 
+                      name="description" 
+                      placeholder="รายละเอียดการติดตั้ง..." 
+                      value={installFormData.description}
+                      onChange={handleInstallFormChange}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">หมายเหตุ</Label>
+                    <Textarea 
+                      id="notes" 
+                      name="notes" 
+                      placeholder="รายละเอียดเพิ่มเติม..." 
+                      value={installFormData.notes}
+                      onChange={handleInstallFormChange}
                     />
                   </div>
                 </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="date">วันที่ติดตั้ง</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsInstallDialogOpen(false)}>
+                    ยกเลิก
+                  </Button>
+                  <Button onClick={handleInstallTire} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        กำลังบันทึก...
+                      </>
+                    ) : (
+                      'บันทึก'
+                    )}
+                  </Button>
                 </div>
-                
-                {selectedVehicle && renderTireDiagram()}
-                
-                {selectedVehicle && (
-                  <div className="grid gap-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">ตำแหน่งที่ต้องการติดตั้งยาง</h3>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleSaveAllInstallations}
-                        disabled={isLoading || !installedTires.some(tire => tire.tireId !== "")}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            กำลังบันทึก...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" />
-                            บันทึกการติดตั้งทั้งหมด
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="position">ตำแหน่งล้อ</Label>
-                        <Select
-                          value={selectedPosition}
-                          onValueChange={handlePositionSelect}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="เลือกตำแหน่ง" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getWheelPositions().map((position) => (
-                              <SelectItem key={position.value} value={position.value}>
-                                {position.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor="tire">ยางที่ต้องการติดตั้ง</Label>
-                        <Select
-                          value={selectedTire}
-                          onValueChange={handleTireSelect}
-                          disabled={!selectedPosition || isLoadingTires}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={isLoadingTires ? "กำลังโหลด..." : "เลือกยาง"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableTires.map((tire) => (
-                              <SelectItem key={tire.id} value={tire.id}>
-                                {tire.serialNumber} - {tire.brand} {tire.model}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex items-end">
-                        <Button 
-                          onClick={handleInstallTire} 
-                          disabled={!selectedPosition || !selectedTire || isLoading}
-                          className="w-full"
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          ติดตั้งยาง
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ตำแหน่ง</TableHead>
-                          <TableHead>ยางที่ติดตั้ง</TableHead>
-                          <TableHead>สถานะ</TableHead>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>ประวัติการติดตั้งยาง</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>วันที่</TableHead>
+                      <TableHead>รถ</TableHead>
+                      <TableHead>ยาง</TableHead>
+                      <TableHead>ตำแหน่ง</TableHead>
+                      <TableHead>เลขไมล์</TableHead>
+                      <TableHead>ผู้ดำเนินการ</TableHead>
+                      <TableHead className="text-right">รายละเอียด</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {installations.length > 0 ? (
+                      installations.map((install) => (
+                        <TableRow key={install.id}>
+                          <TableCell>{new Date(install.date).toLocaleDateString('th-TH')}</TableCell>
+                          <TableCell>{getVehicleName(install.vehicleId)}</TableCell>
+                          <TableCell>{getTireName(install.tireId)}</TableCell>
+                          <TableCell>{install.position}</TableCell>
+                          <TableCell>{install.mileage?.toLocaleString()} กม.</TableCell>
+                          <TableCell>{install.performedBy}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon">
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {installedTires.map((tire, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{tire.position}</TableCell>
-                            <TableCell>{tire.serialNumber !== "ไม่มียาง" ? tire.serialNumber : "-"}</TableCell>
-                            <TableCell>
-                              {tire.tireId ? (
-                                <Badge className="bg-green-500">ติดตั้งแล้ว</Badge>
-                              ) : (
-                                <Badge variant="outline">ยังไม่ได้ติดตั้ง</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center">
+                          ไม่พบข้อมูลการติดตั้งยาง
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="replace">
-          <Card>
-            <CardHeader>
-              <CardTitle>เปลี่ยน/สลับยางบางตำแหน่ง</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="vehicle">รถที่ต้องการเปลี่ยน/สลับยาง</Label>
-                    <Select
-                      value={selectedVehicle}
-                      onValueChange={handleVehicleSelect}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={isLoadingVehicles ? "กำลังโหลด..." : "เลือกรถ"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+        <TabsContent value="inventory">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-xl font-semibold">คลังยาง</h2>
+              <p className="text-sm text-muted-foreground">จัดการยางในคลัง และเพิ่มยางใหม่เข้าคลังโดยไม่ต้องติดตั้งกับรถ</p>
+            </div>
+            <Dialog open={isNewTireDialogOpen} onOpenChange={setIsNewTireDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Warehouse className="h-4 w-4 mr-2" />
+                  เพิ่มยางเข้าคลัง
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[625px]">
+                <DialogHeader>
+                  <DialogTitle>เพิ่มยางใหม่เข้าคลัง</DialogTitle>
+                  <DialogDescription>
+                    เพิ่มยางใหม่เข้าคลังเพื่อเตรียมพร้อมสำหรับการใช้งาน
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="serialNumber">ซีเรียลนัมเบอร์</Label>
+                      <Input 
+                        id="serialNumber" 
+                        name="serialNumber" 
+                        placeholder="เช่น BDG2021060001" 
+                        value={newTireFormData.serialNumber}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="size">ขนาด</Label>
+                      <Input 
+                        id="size" 
+                        name="size" 
+                        placeholder="เช่น 11R22.5" 
+                        value={newTireFormData.size}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
                   </div>
-                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="brand">ยี่ห้อ</Label>
+                      <Input 
+                        id="brand" 
+                        name="brand" 
+                        placeholder="เช่น Bridgestone" 
+                        value={newTireFormData.brand}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="model">รุ่น</Label>
+                      <Input 
+                        id="model" 
+                        name="model" 
+                        placeholder="เช่น R150" 
+                        value={newTireFormData.model}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="type">ประเภท</Label>
+                      <Select 
+                        value={newTireFormData.type} 
+                        onValueChange={(value: 'new' | 'retreaded') => handleSelectChange("newTire", "type", value)}
+                      >
+                        <SelectTrigger id="type">
+                          <SelectValue placeholder="เลือกประเภท" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">ยางใหม่</SelectItem>
+                          <SelectItem value="retreaded">ยางหล่อดอก</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="treadDepth">ความลึกดอกยาง (มม.)</Label>
+                      <Input 
+                        id="treadDepth" 
+                        name="treadDepth" 
+                        type="number" 
+                        step="0.1" 
+                        placeholder="เช่น 12.5" 
+                        value={newTireFormData.treadDepth || ""}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="purchaseDate">วันที่ซื้อ</Label>
+                      <Input 
+                        id="purchaseDate" 
+                        name="purchaseDate" 
+                        type="date" 
+                        value={newTireFormData.purchaseDate}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="purchasePrice">ราคาซื้อ (บาท)</Label>
+                      <Input 
+                        id="purchasePrice" 
+                        name="purchasePrice" 
+                        type="number" 
+                        placeholder="เช่น 8500" 
+                        value={newTireFormData.purchasePrice || ""}
+                        onChange={handleNewTireFormChange}
+                      />
+                    </div>
+                  </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="mileage">เลขไมล์ปัจจุบัน (กม.)</Label>
-                    <Input
-                      id="mileage"
-                      type="number"
-                      value={mileage}
-                      onChange={(e) => setMileage(e.target.value)}
-                      placeholder="กรอกเลขไมล์ปัจจุบัน"
+                    <Label htmlFor="supplier">ผู้จำหน่าย</Label>
+                    <Input 
+                      id="supplier" 
+                      name="supplier" 
+                      placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" 
+                      value={newTireFormData.supplier}
+                      onChange={handleNewTireFormChange}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">หมายเหตุ</Label>
+                    <Textarea 
+                      id="notes" 
+                      name="notes" 
+                      placeholder="รายละเอียดเพิ่มเติม..." 
+                      value={newTireFormData.notes}
+                      onChange={handleNewTireFormChange}
                     />
                   </div>
                 </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="date">วันที่ดำเนินการ</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsNewTireDialogOpen(false)}>
+                    ยกเลิก
+                  </Button>
+                  <Button onClick={handleAddNewTire} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        กำลังบันทึก...
+                      </>
+                    ) : (
+                      'บันทึก'
+                    )}
+                  </Button>
                 </div>
-                
-                {selectedVehicle && renderTireDiagram()}
-                
-                {selectedVehicle && (
-                  <div className="grid gap-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">การสลับยางและเปลี่ยนยางใหม่</h3>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="default" size="sm" disabled={isLoading}>
-                            {isLoading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                กำลังบันทึก...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-2" />
-                                บันทึกการดำเนินการ
-                              </>
-                            )}
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>ยืนยันการเปลี่ยน/สลับยาง</DialogTitle>
-                          </DialogHeader>
-                          <div className="py-4 space-y-4">
-                            <p>คุณต้องการบันทึกการเปลี่ยน/สลับยางตามที่กำหนดไว้หรือไม่?</p>
-                            <p className="text-sm text-muted-foreground">รถทะเบียน: {vehicles.find(v => v.id === selectedVehicle)?.registrationNumber}</p>
-                            <p className="text-sm text-muted-foreground">เลขไมล์: {mileage} กม.</p>
-                          </div>
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <Button variant="outline">ยกเลิก</Button>
-                            </DialogClose>
-                            <DialogClose asChild>
-                              <Button onClick={handleSaveAllInstallations} disabled={isLoading}>
-                                ยืนยัน
-                              </Button>
-                            </DialogClose>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                    
-                    <div className="p-4 border rounded-lg bg-yellow-50">
-                      <p className="text-sm mb-2"><span className="font-bold">คำแนะนำ:</span> คลิกที่ตำแหน่งล้อในแผนผังด้านบนเพื่อเลือกตำแหน่ง จากนั้นเลือกยางที่ต้องการติดตั้งหรือสลับ</p>
-                      <p className="text-sm">สำหรับการสลับยาง ให้ติดตั้งยางจากตำแหน่งอื่นในรถ หรือติดตั้งยางใหม่ในตำแหน่งที่ต้องการ</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="position">ตำแหน่งล้อที่ต้องการเปลี่ยน</Label>
-                        <Select
-                          value={selectedPosition}
-                          onValueChange={handlePositionSelect}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="เลือกตำแหน่ง" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getWheelPositions().map((position) => (
-                              <SelectItem key={position.value} value={position.value}>
-                                {position.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor="tire">ยางที่ต้องการติดตั้ง</Label>
-                        <Select
-                          value={selectedTire}
-                          onValueChange={handleTireSelect}
-                          disabled={!selectedPosition || isLoadingTires}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={isLoadingTires ? "กำลังโหลด..." : "เลือกยาง"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="new-tire" className="font-semibold">-- ยางใหม่ --</SelectItem>
-                            {availableTires.map((tire) => (
-                              <SelectItem key={tire.id} value={tire.id}>
-                                {tire.serialNumber} - {tire.brand} {tire.model}
-                              </SelectItem>
-                            ))}
-                            <SelectItem value="swap-tire" className="font-semibold">-- สลับจากตำแหน่งอื่น --</SelectItem>
-                            {installedTires
-                              .filter(t => t.tireId && t.position !== selectedPosition)
-                              .map((tire, index) => (
-                                <SelectItem key={`swap-${index}`} value={`swap-${tire.position}`}>
-                                  {tire.position} - {tire.serialNumber}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex items-end">
-                        <Button 
-                          onClick={handleInstallTire} 
-                          disabled={!selectedPosition || !selectedTire || isLoading}
-                          className="w-full"
-                        >
-                          {selectedTire?.startsWith('swap-') ? 'สลับยาง' : 'ติดตั้งยาง'}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>รายการยางในคลัง</CardTitle>
+              <CardDescription>ยางที่พร้อมใช้งานและยังไม่ได้ติดตั้งกับรถ</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ซีเรียลนัมเบอร์</TableHead>
+                      <TableHead>ยี่ห้อ/รุ่น</TableHead>
+                      <TableHead>ขนาด</TableHead>
+                      <TableHead>ประเภท</TableHead>
+                      <TableHead>สถานะ</TableHead>
+                      <TableHead>ความลึกดอกยาง</TableHead>
+                      <TableHead>ระยะทางใช้งาน</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockTires.length > 0 ? (
+                      stockTires
+                        .filter(tire => !tire.vehicle_id)
+                        .map((tire) => (
+                        <TableRow key={tire.id}>
+                          <TableCell>{tire.serialNumber}</TableCell>
+                          <TableCell>{tire.brand} {tire.model}</TableCell>
+                          <TableCell>{tire.size}</TableCell>
+                          <TableCell>{tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}</TableCell>
+                          <TableCell>{getStatusLabel(tire.status)}</TableCell>
+                          <TableCell>{tire.treadDepth?.toFixed(1) || '-'} มม.</TableCell>
+                          <TableCell>{tire.mileage?.toLocaleString() || '0'} กม.</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center">
+                          ไม่พบข้อมูลยางในคลัง
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
