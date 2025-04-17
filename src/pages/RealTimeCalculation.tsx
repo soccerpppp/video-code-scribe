@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { TireWearCalculationForm } from "@/components/tire-wear/TireWearCalculationForm";
 import { TireWearResultDialog } from "@/components/tire-wear/TireWearResultDialog";
@@ -65,6 +65,7 @@ const RealTimeCalculation: React.FC = () => {
   const [calculations, setCalculations] = useState<TireWearCalculation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   
   const [selectedTire, setSelectedTire] = useState<string>('');
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
@@ -137,38 +138,38 @@ const RealTimeCalculation: React.FC = () => {
     };
   };
 
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [vehiclesData, tiresData, calculationsData] = await Promise.all([
+        supabase.from('vehicles').select('*').order('registration_number', { ascending: true }),
+        supabase.from('tires').select('*').order('serial_number', { ascending: true }),
+        supabase.from('tire_wear_calculations')
+          .select('*')
+          .order('calculation_date', { ascending: false })
+          .limit(10)
+      ]);
+
+      if (vehiclesData.error) throw vehiclesData.error;
+      if (tiresData.error) throw tiresData.error;
+      if (calculationsData.error) throw calculationsData.error;
+
+      setVehicles(vehiclesData.data ? vehiclesData.data.map(mapDbVehicleToVehicle) : []);
+      setTires(tiresData.data ? tiresData.data.map(mapDbTireToTire) : []);
+      setCalculations(calculationsData.data ? calculationsData.data.map(mapDbCalculationToCalculation) : []);
+    } catch (error: any) {
+      console.error("Error loading data from Supabase:", error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถโหลดข้อมูลได้",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const [vehiclesData, tiresData, calculationsData] = await Promise.all([
-          supabase.from('vehicles').select('*').order('registration_number', { ascending: true }),
-          supabase.from('tires').select('*').order('serial_number', { ascending: true }),
-          supabase.from('tire_wear_calculations')
-            .select('*')
-            .order('calculation_date', { ascending: false })
-            .limit(10)
-        ]);
-
-        if (vehiclesData.error) throw vehiclesData.error;
-        if (tiresData.error) throw tiresData.error;
-        if (calculationsData.error) throw calculationsData.error;
-
-        setVehicles(vehiclesData.data ? vehiclesData.data.map(mapDbVehicleToVehicle) : []);
-        setTires(tiresData.data ? tiresData.data.map(mapDbTireToTire) : []);
-        setCalculations(calculationsData.data ? calculationsData.data.map(mapDbCalculationToCalculation) : []);
-      } catch (error: any) {
-        console.error("Error loading data from Supabase:", error);
-        toast({
-          title: "เกิดข้อผิดพลาด",
-          description: "ไม่สามารถโหลดข้อมูลได้",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     loadData();
   }, []);
 
@@ -189,6 +190,18 @@ const RealTimeCalculation: React.FC = () => {
       }
     }
   }, [selectedTire, tires]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    setIsRefreshing(false);
+    
+    toast({
+      title: "รีเฟรชข้อมูลสำเร็จ",
+      description: "ข้อมูลได้รับการอัปเดตล่าสุดแล้ว",
+      variant: "default"
+    });
+  };
 
   const handleCalculate = async () => {
     try {
@@ -268,6 +281,24 @@ const RealTimeCalculation: React.FC = () => {
       setResult(calculationResult);
       setShowResultDialog(true);
       
+      // Update local tire data to reflect the changes
+      setTires(prevTires => 
+        prevTires.map(t => 
+          t.id === selectedTire 
+            ? { ...t, treadDepth, mileage: t.mileage + (currentMileage - vehicle.currentMileage) } 
+            : t
+        )
+      );
+      
+      // Update local vehicle data to reflect the changes
+      setVehicles(prevVehicles => 
+        prevVehicles.map(v => 
+          v.id === selectedVehicle 
+            ? { ...v, currentMileage } 
+            : v
+        )
+      );
+      
       toast({
         title: "บันทึกสำเร็จ",
         description: "ผลการคำนวณการสึกหรอของยางได้ถูกบันทึกแล้ว",
@@ -299,15 +330,30 @@ const RealTimeCalculation: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-primary shadow-md">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              className="mr-4 text-white" 
-              onClick={() => navigate("/")}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Button 
+                variant="ghost" 
+                className="mr-4 text-white" 
+                onClick={() => navigate("/")}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-2xl font-bold text-white">คำนวณเรียวทาม</h1>
+            </div>
+            <Button
+              variant="outline"
+              className="bg-white text-primary hover:bg-gray-100" 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
             >
-              <ArrowLeft className="h-5 w-5" />
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCcw className="h-4 w-4 mr-2" />
+              )}
+              รีเฟรชข้อมูล
             </Button>
-            <h1 className="text-2xl font-bold text-white">คำนวณเรียวทาม</h1>
           </div>
         </div>
       </header>

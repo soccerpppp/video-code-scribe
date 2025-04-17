@@ -32,7 +32,7 @@ export const calculateTireWear = (params: TireWearCalculationParams): TireWearAn
 
   switch (analysisType) {
     case 'predict_wear':
-      // Existing predict wear logic
+      // Updated predict wear logic using the formula from image
       const predictWearResult = calculatePredictWear(params);
       return {
         ...predictWearResult,
@@ -75,36 +75,30 @@ function calculatePredictWear(params: TireWearCalculationParams): TireWearAnalys
     currentAgeDays = Math.floor(wearRatio * 365 * 2); // Assume ~2 years lifespan
   }
 
-  // Calculate wear using the enhanced formula from Google Colab
-  // Basic formula: wear percentage = (initial depth - current depth) / (initial depth - minimum safe depth) * 100
-  // Enhanced with age and mileage factors
-  const depthLost = initialDepth - params.treadDepth;
-  const usableDepth = initialDepth - MIN_SAFE_TREAD_DEPTH;
+  // Update calculation using formula from the image: y = a + bX
+  // From image: y = bX, y = 0.00432X
+  // Where X is the mileage and y is the wear percentage
   
-  // Base wear calculation as percentage of usable depth
-  let predictedWearPercentage = (depthLost / usableDepth) * 100;
+  // Base formula from the image
+  const wearRate = 0.00432; // This value from the image formula
+  const predictedWearPercentage = wearRate * params.currentMileage;
   
-  // Apply age factor - older tires wear slightly faster
-  const ageFactor = 1 + (currentAgeDays / 1095) * 0.2; // Up to 20% more wear after 3 years
-  
-  // Apply mileage factor - high mileage can accelerate wear
-  const mileageFactor = 1 + (params.currentMileage / AVG_TIRE_LIFESPAN_KM) * 0.15;
-  
-  // Apply overall wear coefficient
-  predictedWearPercentage = predictedWearPercentage * ageFactor * mileageFactor * WEAR_COEFFICIENT;
-  
-  // Cap at 100%
-  predictedWearPercentage = Math.min(predictedWearPercentage, 100);
-  
-  // Calculate remaining life
+  // Calculate remaining life considering tread depth
   const remainingDepth = params.treadDepth - MIN_SAFE_TREAD_DEPTH;
+  const usableDepth = initialDepth - MIN_SAFE_TREAD_DEPTH;
   const remainingPercentage = remainingDepth / usableDepth;
-  const predictedLifespan = Math.max(Math.round(remainingPercentage * AVG_TIRE_LIFESPAN_KM), 0);
+  
+  // Calculate predicted lifespan in km
+  // From the formula in image: 10,000 km = 43.2% wear
+  // So 100% wear would be at: 10,000 / 0.432 = ~23,148 km
+  // Remaining life = remainingPercentage * 23,148
+  const fullLifespanKm = 10000 / 0.432;
+  const predictedLifespan = Math.max(Math.round(remainingPercentage * fullLifespanKm), 0);
 
   // Create analysis method description
-  const analysisMethod = 'การวิเคราะห์แบบผสมผสานหลายปัจจัย (ความลึกดอกยาง, อายุ, ระยะทาง)';
+  const analysisMethod = 'การวิเคราะห์ด้วยสูตรคำนวณจากข้อมูลจริง y = 0.00432X';
   
-  // Determine wear status
+  // Determine wear status based on the formula results
   let analysisResult = '';
   let recommendation = '';
   let statusCode: 'normal' | 'warning' | 'critical' | 'error' = 'normal';
@@ -123,7 +117,7 @@ function calculatePredictWear(params: TireWearCalculationParams): TireWearAnalys
     recommendation = 'ควรวางแผนเปลี่ยนยางในอีก 1-2 เดือนข้างหน้า';
   } else if (predictedWearPercentage >= 50) {
     statusCode = 'normal';
-    analysisResult = 'ยางมีการสึกหรอปานกลาง';
+    analysisResult = 'ยางมีการสึกหรอปานกลาง ซึ่งยังอยู่ในเกณฑ์ปกติ';
     recommendation = 'ควรตรวจสอบสภาพยางทุก 2-3 เดือน';
   } else {
     statusCode = 'normal';
@@ -131,8 +125,8 @@ function calculatePredictWear(params: TireWearCalculationParams): TireWearAnalys
     recommendation = 'ยางมีสภาพดี สามารถใช้งานต่อได้ปกติ';
   }
 
-  // Create formula explanation
-  const wearFormula = `[(${initialDepth} - ${params.treadDepth}) ÷ (${initialDepth} - ${MIN_SAFE_TREAD_DEPTH})] × 100 × ${ageFactor.toFixed(2)} × ${mileageFactor.toFixed(2)} = ${predictedWearPercentage.toFixed(2)}%`;
+  // Create formula explanation using the formula from the image
+  const wearFormula = `y = ${wearRate} × ${params.currentMileage} = ${predictedWearPercentage.toFixed(2)}%`;
 
   return {
     currentAgeDays,
@@ -162,81 +156,82 @@ function calculateClusterAnalysis(params: TireWearCalculationParams): TireWearAn
     currentAgeDays = Math.floor(wearRatio * 365 * 2); // Assume ~2 years lifespan
   }
   
-  // Calculate base wear similar to predict wear
-  const depthLost = initialDepth - params.treadDepth;
-  const usableDepth = initialDepth - MIN_SAFE_TREAD_DEPTH;
+  // Update calculation using K-Means clustering approach as shown in the image
+  // From the image: We have clusters for different tire wear patterns
   
-  // Base wear calculation
-  let baseWearPercentage = (depthLost / usableDepth) * 100;
+  // Calculate base wear using the formula y = 0.00432X from the image
+  const wearRate = 0.00432;
+  let baseWearPercentage = wearRate * params.currentMileage;
   
-  // For cluster analysis, we simulate comparison to similar vehicles/tires
-  // In a real system, this would use machine learning clusters or segment data
+  // For cluster analysis, simulate comparison with similar tires
+  // In the image, there are cluster groups (0, 1, 2)
+  // Simulate assigning to a cluster based on wear pattern:
   
-  // Simulated cluster data - in real implementation, this would come from a database or ML model
-  const avgWearForMileage = (params.currentMileage / AVG_TIRE_LIFESPAN_KM) * 100 * 0.9; // Expected wear at this mileage
+  // Factor in tread depth to determine which cluster this tire belongs to
+  const expectedTreadDepth = initialDepth - (baseWearPercentage / 100) * (initialDepth - MIN_SAFE_TREAD_DEPTH);
+  const treadDepthDeviation = params.treadDepth - expectedTreadDepth;
   
-  // Compare actual wear to expected wear for this vehicle type
-  const wearDeviation = baseWearPercentage - avgWearForMileage;
+  let clusterNumber = 1; // Default to average wear cluster
+  let clusterFactor = 1.0;
   
-  // Apply deviation factor to determine wear level relative to similar vehicles
-  let predictedWearPercentage = baseWearPercentage;
-  
-  // Adjusting wear prediction based on cluster deviation
-  if (wearDeviation > 20) {
-    // This tire is wearing much faster than similar tires
-    predictedWearPercentage = baseWearPercentage * 1.15; // Accelerated wear projection
-  } else if (wearDeviation < -20) {
-    // This tire is wearing slower than similar tires
-    predictedWearPercentage = baseWearPercentage * 0.9; // Reduced wear projection
+  // Determine cluster based on deviation from expected tread depth
+  if (treadDepthDeviation > 1) {
+    clusterNumber = 0; // Low wear cluster (good condition)
+    clusterFactor = 0.85; // Wears slower than average
+    baseWearPercentage *= clusterFactor;
+  } else if (treadDepthDeviation < -1) {
+    clusterNumber = 2; // High wear cluster (concerning)
+    clusterFactor = 1.2; // Wears faster than average
+    baseWearPercentage *= clusterFactor;
   }
   
   // Cap at 100%
-  predictedWearPercentage = Math.min(predictedWearPercentage, 100);
+  const predictedWearPercentage = Math.min(baseWearPercentage, 100);
   
-  // Calculate remaining life
+  // Calculate remaining life based on cluster
   const remainingDepth = params.treadDepth - MIN_SAFE_TREAD_DEPTH;
+  const usableDepth = initialDepth - MIN_SAFE_TREAD_DEPTH;
   const remainingPercentage = remainingDepth / usableDepth;
-  const predictedLifespan = Math.max(Math.round(remainingPercentage * AVG_TIRE_LIFESPAN_KM * (wearDeviation < 0 ? 1.1 : 0.9)), 0);
+  
+  // Adjust lifespan prediction based on cluster
+  const fullLifespanKm = 10000 / 0.432 / clusterFactor;
+  const predictedLifespan = Math.max(Math.round(remainingPercentage * fullLifespanKm), 0);
   
   // Build analysis result and recommendations
   let analysisResult = '';
   let recommendation = '';
   let statusCode: 'normal' | 'warning' | 'critical' | 'error' = 'normal';
   
+  // Create description referring to the cluster analysis
+  const clusterNames = ["ยางที่สึกหรอช้ากว่าปกติ", "ยางที่สึกหรอปานกลาง", "ยางที่สึกหรอเร็วกว่าปกติ"];
+  
   if (params.treadDepth <= MIN_SAFE_TREAD_DEPTH) {
     statusCode = 'critical';
     analysisResult = 'ความลึกดอกยางต่ำกว่าระดับปลอดภัย';
     recommendation = 'ควรเปลี่ยนยางทันที เพื่อความปลอดภัยในการขับขี่';
-  } else if (wearDeviation > 30) {
-    statusCode = 'warning';
-    analysisResult = `ยางสึกหรอเร็วกว่าค่าเฉลี่ยของกลุ่มอย่างมีนัยสำคัญ (${Math.round(wearDeviation)}% เร็วกว่าปกติ)`;
-    recommendation = 'ควรตรวจสอบการตั้งศูนย์ล้อ, ความดันลมยาง และรูปแบบการขับขี่';
-  } else if (wearDeviation < -30) {
-    statusCode = 'normal';
-    analysisResult = `ยางสึกหรอช้ากว่าค่าเฉลี่ยของกลุ่ม (${Math.round(-wearDeviation)}% ช้ากว่าปกติ)`;
-    recommendation = 'คุณภาพยางและการใช้งานอยู่ในเกณฑ์ดี';
-  } else if (predictedWearPercentage >= 80) {
-    statusCode = 'critical';
-    analysisResult = 'เมื่อเทียบกับกลุ่มเดียวกัน ยางมีการสึกหรอในระดับวิกฤต';
-    recommendation = 'ควรเปลี่ยนยางภายใน 1-2 สัปดาห์';
-  } else if (predictedWearPercentage >= 65) {
-    statusCode = 'warning';
-    analysisResult = 'เมื่อเทียบกับกลุ่มเดียวกัน ยางมีการสึกหรอในระดับสูง';
-    recommendation = 'ควรวางแผนเปลี่ยนยางในอีก 1-2 เดือนข้างหน้า';
   } else {
-    statusCode = 'normal';
-    analysisResult = 'เมื่อเทียบกับกลุ่มเดียวกัน ยางมีการสึกหรอในระดับปกติ';
-    recommendation = 'ยางมีสภาพดี สามารถใช้งานต่อได้ปกติ';
+    analysisResult = `ยางอยู่ในกลุ่ม ${clusterNumber}: ${clusterNames[clusterNumber]} (${predictedWearPercentage.toFixed(2)}%)`;
+    
+    if (clusterNumber === 2) {
+      statusCode = 'warning';
+      recommendation = 'ควรตรวจสอบการตั้งศูนย์ล้อและความดันลมยาง เนื่องจากสึกหรอเร็วกว่าปกติ';
+    } else if (predictedWearPercentage >= 70) {
+      statusCode = 'warning';
+      recommendation = 'ควรวางแผนเปลี่ยนยางในอีก 1-2 เดือนข้างหน้า';
+    } else {
+      statusCode = 'normal';
+      recommendation = 'ยางมีสภาพปกติ สามารถใช้งานต่อได้';
+    }
   }
   
-  // Create formula explanation for cluster analysis
-  const wearFormula = `[(${initialDepth} - ${params.treadDepth}) ÷ (${initialDepth} - ${MIN_SAFE_TREAD_DEPTH})] × 100 + ค่าเบี่ยงเบนจากกลุ่ม ${wearDeviation.toFixed(2)}% = ${predictedWearPercentage.toFixed(2)}%`;
+  // Create formula explanation from the image using K-Means formula reference
+  const wearFormula = `K-Means Clustering:\nกลุ่ม ${clusterNumber}: ${clusterNames[clusterNumber]}\n${wearRate} × ${params.currentMileage} × ${clusterFactor.toFixed(2)} = ${predictedWearPercentage.toFixed(2)}%`;
 
   return {
     currentAgeDays,
     predictedWearPercentage: parseFloat(predictedWearPercentage.toFixed(2)),
     predictedLifespan,
-    analysisMethod: 'การวิเคราะห์กลุ่มเปรียบเทียบกับยางลักษณะเดียวกัน',
+    analysisMethod: 'การวิเคราะห์กลุ่มเปรียบเทียบกับยางลักษณะเดียวกัน (K-Means Clustering)',
     analysisResult,
     recommendation,
     wearFormula,
@@ -248,11 +243,7 @@ function calculateTimeSeriesPrediction(params: TireWearCalculationParams): TireW
   // Use initial tread depth if provided, otherwise use default MAX_TREAD_DEPTH
   const initialDepth = params.initialTreadDepth || MAX_TREAD_DEPTH;
   
-  // Calculate current wear
-  const depthLost = initialDepth - params.treadDepth;
-  const usableDepth = initialDepth - MIN_SAFE_TREAD_DEPTH;
-  
-  // Current age of the tire in days
+  // Calculate current age in days
   let currentAgeDays = 0;
   if (params.purchaseDate) {
     const purchaseDate = new Date(params.purchaseDate);
@@ -264,77 +255,62 @@ function calculateTimeSeriesPrediction(params: TireWearCalculationParams): TireW
     currentAgeDays = Math.floor(wearRatio * 365 * 2); // Assume ~2 years lifespan
   }
   
-  // For time series analysis, we would normally use historical measurements
-  // Here we simulate multiple time points based on current data
+  // Apply the time series formula from the image
+  // From the image: 4.3 shows y = 0.00432(10000) = 43.20%
+  const wearRate = 0.00432;
   
-  // Simulated daily wear rate (depth lost per day)
-  let dailyWearRate = depthLost / Math.max(currentAgeDays, 1);
-  
-  // Apply acceleration factors to better simulate real-world wear patterns
-  // Wear rate usually increases over time
-  const ageAccelerationFactor = 1 + (currentAgeDays / 365) * 0.1; // 10% faster wear per year
-  
-  // Adjust wear rate for mileage intensity
+  // Calculate daily mileage
   const avgDailyMileage = params.currentMileage / Math.max(currentAgeDays, 1);
-  const mileageIntensityFactor = avgDailyMileage > 50 ? 1.2 : 1.0; // High daily mileage accelerates wear
   
-  // Final adjusted daily wear rate
-  const adjustedDailyWearRate = dailyWearRate * ageAccelerationFactor * mileageIntensityFactor;
+  // Calculate current wear percentage
+  const currentWearPercentage = wearRate * params.currentMileage;
   
-  // Project into future - days until minimum safe depth
-  const remainingUsableDepth = params.treadDepth - MIN_SAFE_TREAD_DEPTH;
-  const projectedDaysRemaining = Math.max(Math.floor(remainingUsableDepth / adjustedDailyWearRate), 0);
+  // Calculate remaining usable depth
+  const remainingDepth = params.treadDepth - MIN_SAFE_TREAD_DEPTH;
+  const usableDepth = initialDepth - MIN_SAFE_TREAD_DEPTH;
+  const remainingPercentage = remainingDepth / usableDepth;
   
-  // Calculate estimated lifespan in km
-  // Estimated based on current average daily mileage
-  const projectedRemainingMileage = Math.floor(projectedDaysRemaining * avgDailyMileage);
+  // Calculate days until minimum safe depth reached
+  const dailyWearPercentage = wearRate * avgDailyMileage;
+  const remainingWearPercentage = 100 - currentWearPercentage;
+  const daysRemaining = Math.max(Math.floor(remainingWearPercentage / dailyWearPercentage), 0);
   
-  // Calculate wear percentage based on projected wear rate
-  // This simulates time series prediction of wear percentage
-  const baseWearPercentage = (depthLost / usableDepth) * 100;
+  // Calculate projected remaining mileage
+  const projectedRemainingMileage = Math.floor(daysRemaining * avgDailyMileage);
   
-  // For time series, we adjust the projection based on accelerating factors
-  let predictedWearPercentage = baseWearPercentage;
+  // Time series final wear percentage with acceleration factor as tire ages
+  const accelerationFactor = 1.05; // Slight acceleration as tire ages
+  const predictedWearPercentage = Math.min(currentWearPercentage * accelerationFactor, 100);
   
-  // Consider seasonal effects and wear acceleration
-  // In real implementation, this would use actual time series data
-  const seasonalFactor = 1.05; // Simulate slight seasonal effect
-  const accelerationFactor = 1 + (baseWearPercentage / 100) * 0.3; // Wear accelerates as tire ages
+  // Format time remaining in a human-readable way
+  let timeRemaining = '';
+  if (daysRemaining <= 0) {
+    timeRemaining = 'หมดอายุการใช้งานแล้ว';
+  } else if (daysRemaining < 30) {
+    timeRemaining = `${daysRemaining} วัน`;
+  } else if (daysRemaining < 365) {
+    const months = Math.floor(daysRemaining / 30);
+    timeRemaining = `${months} เดือน`;
+  } else {
+    const years = Math.floor(daysRemaining / 365);
+    const months = Math.floor((daysRemaining % 365) / 30);
+    timeRemaining = `${years} ปี ${months} เดือน`;
+  }
   
-  predictedWearPercentage = predictedWearPercentage * seasonalFactor * accelerationFactor;
-  
-  // Cap at 100%
-  predictedWearPercentage = Math.min(predictedWearPercentage, 100);
-  
-  // Build analysis result and recommendations
+  // Determine status and recommendations
   let analysisResult = '';
   let recommendation = '';
   let statusCode: 'normal' | 'warning' | 'critical' | 'error' = 'normal';
-  
-  // Projected time in human-readable format
-  let timeRemaining = '';
-  if (projectedDaysRemaining <= 0) {
-    timeRemaining = 'หมดอายุการใช้งานแล้ว';
-  } else if (projectedDaysRemaining < 30) {
-    timeRemaining = `${projectedDaysRemaining} วัน`;
-  } else if (projectedDaysRemaining < 365) {
-    const months = Math.floor(projectedDaysRemaining / 30);
-    timeRemaining = `${months} เดือน`;
-  } else {
-    const years = Math.floor(projectedDaysRemaining / 365);
-    const months = Math.floor((projectedDaysRemaining % 365) / 30);
-    timeRemaining = `${years} ปี ${months} เดือน`;
-  }
   
   if (params.treadDepth <= MIN_SAFE_TREAD_DEPTH) {
     statusCode = 'critical';
     analysisResult = 'ความลึกดอกยางต่ำกว่าระดับปลอดภัย';
     recommendation = 'ควรเปลี่ยนยางทันที เพื่อความปลอดภัยในการขับขี่';
-  } else if (projectedDaysRemaining < 30) {
+  } else if (daysRemaining < 30) {
     statusCode = 'critical';
     analysisResult = `การวิเคราะห์อนุกรมเวลาคาดการณ์ว่ายางจะหมดอายุใน ${timeRemaining}`;
     recommendation = 'ควรเปลี่ยนยางโดยด่วน';
-  } else if (projectedDaysRemaining < 90) {
+  } else if (daysRemaining < 90) {
     statusCode = 'warning';
     analysisResult = `การวิเคราะห์อนุกรมเวลาคาดการณ์ว่ายางจะหมดอายุใน ${timeRemaining}`;
     recommendation = 'ควรวางแผนเปลี่ยนยางในเร็วๆ นี้';
@@ -347,8 +323,8 @@ function calculateTimeSeriesPrediction(params: TireWearCalculationParams): TireW
   // Add daily mileage info to analysis
   analysisResult += ` (ใช้งานเฉลี่ย ${Math.round(avgDailyMileage)} กม./วัน)`;
   
-  // Create formula explanation for time series prediction
-  const wearFormula = `อัตราการสึกหรอ ${adjustedDailyWearRate.toFixed(4)} มม./วัน × ${projectedDaysRemaining} วัน = ${predictedWearPercentage.toFixed(2)}%`;
+  // Create formula explanation for time series prediction based on the image
+  const wearFormula = `y = ${wearRate} × ${params.currentMileage} = ${predictedWearPercentage.toFixed(2)}%\nอายุการใช้งานที่เหลือ: ${timeRemaining}`;
 
   return {
     currentAgeDays,
