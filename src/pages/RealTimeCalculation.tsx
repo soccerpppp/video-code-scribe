@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,24 @@ interface VehicleFromDB {
   wheel_positions: number;
   current_mileage: number;
   notes?: string;
+}
+
+interface TireWearCalculationFromDB {
+  id: string;
+  calculation_date: string;
+  current_mileage: number;
+  current_age_days: number;
+  tread_depth_mm: number;
+  predicted_wear_percentage: number;
+  tire_id: string;
+  vehicle_id: string;
+  created_at: string;
+  recommendation: string;
+  updated_at: string;
+  analysis_method: string;
+  notes: string;
+  analysis_result: string;
+  analysis_type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
 }
 
 const RealTimeCalculation: React.FC = () => {
@@ -89,6 +108,26 @@ const RealTimeCalculation: React.FC = () => {
     };
   };
 
+  const mapDbCalculationToCalculation = (calc: TireWearCalculationFromDB): TireWearCalculation => {
+    return {
+      id: calc.id,
+      calculation_date: calc.calculation_date,
+      current_mileage: calc.current_mileage,
+      current_age_days: calc.current_age_days,
+      tread_depth_mm: calc.tread_depth_mm,
+      predicted_wear_percentage: calc.predicted_wear_percentage,
+      tire_id: calc.tire_id,
+      vehicle_id: calc.vehicle_id,
+      created_at: calc.created_at,
+      updated_at: calc.updated_at,
+      analysis_method: calc.analysis_method,
+      analysis_result: calc.analysis_result,
+      recommendation: calc.recommendation,
+      notes: calc.notes,
+      analysis_type: calc.analysis_type
+    };
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -108,7 +147,7 @@ const RealTimeCalculation: React.FC = () => {
 
         setVehicles(vehiclesData.data ? vehiclesData.data.map(mapDbVehicleToVehicle) : []);
         setTires(tiresData.data ? tiresData.data.map(mapDbTireToTire) : []);
-        setCalculations(calculationsData.data || []);
+        setCalculations(calculationsData.data ? calculationsData.data.map(mapDbCalculationToCalculation) : []);
       } catch (error: any) {
         console.error("Error loading data from Supabase:", error);
         toast({
@@ -208,12 +247,12 @@ const RealTimeCalculation: React.FC = () => {
         if (vehicleUpdateError) throw vehicleUpdateError;
       }
       
-      const calculationResult = {
+      const calculationResult: TireWearCalculation = {
         ...calculationRecord,
         predicted_lifespan: analysisResult.predictedLifespan,
         wear_formula: analysisResult.wearFormula,
         status_code: analysisResult.statusCode
-      } as TireWearCalculation;
+      };
       
       setCalculations(prev => [calculationResult, ...prev.slice(0, 9)]);
       setResult(calculationResult);

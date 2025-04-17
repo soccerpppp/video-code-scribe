@@ -78,11 +78,11 @@ export interface TireWearAnalysisResult {
   analysisMethod: string;
   currentAgeDays: number;
   predictedWearPercentage: number;
-  predictedLifespan?: number;
-  analysisResult?: string;
-  recommendation?: string;
-  wearFormula?: string;
-  statusCode?: 'normal' | 'warning' | 'critical' | 'error';
+  predictedLifespan: number;
+  analysisResult: string;
+  recommendation: string;
+  wearFormula: string;
+  statusCode: 'normal' | 'warning' | 'critical' | 'error';
 }
 
 // โมเดลสำหรับการคำนวณความเสียหายของยาง

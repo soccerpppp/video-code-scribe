@@ -1,3 +1,4 @@
+
 interface TireWearCalculationParams {
   tireId: string;
   vehicleId: string;
@@ -58,8 +59,7 @@ export const calculateTireWear = (params: TireWearCalculationParams): TireWearAn
 };
 
 // Helper functions for different analysis methods
-function calculatePredictWear(params: TireWearCalculationParams): Partial<TireWearAnalysisResult> {
-  // Existing predict wear calculation logic
+function calculatePredictWear(params: TireWearCalculationParams): TireWearAnalysisResult {
   // Use initial tread depth if provided, otherwise use default MAX_TREAD_DEPTH
   const initialDepth = params.initialTreadDepth || MAX_TREAD_DEPTH;
   
@@ -146,7 +146,7 @@ function calculatePredictWear(params: TireWearCalculationParams): Partial<TireWe
   };
 }
 
-function calculateClusterAnalysis(params: TireWearCalculationParams): Partial<TireWearAnalysisResult> {
+function calculateClusterAnalysis(params: TireWearCalculationParams): TireWearAnalysisResult {
   // Use initial tread depth if provided, otherwise use default MAX_TREAD_DEPTH
   const initialDepth = params.initialTreadDepth || MAX_TREAD_DEPTH;
   
@@ -244,7 +244,7 @@ function calculateClusterAnalysis(params: TireWearCalculationParams): Partial<Ti
   };
 }
 
-function calculateTimeSeriesPrediction(params: TireWearCalculationParams): Partial<TireWearAnalysisResult> {
+function calculateTimeSeriesPrediction(params: TireWearCalculationParams): TireWearAnalysisResult {
   // Use initial tread depth if provided, otherwise use default MAX_TREAD_DEPTH
   const initialDepth = params.initialTreadDepth || MAX_TREAD_DEPTH;
   
