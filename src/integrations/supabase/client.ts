@@ -100,7 +100,7 @@ type CustomSchema = {
 // Extend the Database type with custom tables
 type ExtendedDatabase = Database & CustomSchema;
 
-// Create the Supabase client
+// Create the Supabase client with auto-conversion between camelCase and snake_case
 export const supabase = createClient<ExtendedDatabase>(
   SUPABASE_URL, 
   SUPABASE_PUBLISHABLE_KEY, 
@@ -110,5 +110,42 @@ export const supabase = createClient<ExtendedDatabase>(
         'x-app-version': '1.0.0',
       },
     },
+    db: {
+      schema: 'public',
+    },
   }
 );
+
+// Helper function to convert snake_case to camelCase
+export function snakeToCamel<T>(obj: any): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(o => snakeToCamel<any>(o)) as unknown as T;
+  }
+
+  return Object.keys(obj).reduce((acc, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    acc[camelKey] = snakeToCamel(obj[key]);
+    return acc;
+  }, {} as any) as T;
+}
+
+// Helper function to convert camelCase to snake_case
+export function camelToSnake<T>(obj: any): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(o => camelToSnake<any>(o)) as unknown as T;
+  }
+
+  return Object.keys(obj).reduce((acc, key) => {
+    const snakeKey = key.replace(/([A-Z])/g, (_, letter) => `_${letter.toLowerCase()}`);
+    acc[snakeKey] = camelToSnake(obj[key]);
+    return acc;
+  }, {} as any) as T;
+}

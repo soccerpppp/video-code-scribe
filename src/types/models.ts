@@ -67,6 +67,8 @@ export interface ActivityLog {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Additional properties specific to activity types
+  newPosition?: string; // For tire rotation activities
 }
 
 // โมเดลสำหรับผลลัพธ์การวิเคราะห์การสึกหรอของยาง

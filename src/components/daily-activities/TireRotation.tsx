@@ -43,6 +43,7 @@ const TireRotation = () => {
       cost: 200,
       description: "หมุนยางตามระยะทางปกติ",
       performedBy: "ช่างสมศักดิ์",
+      position: "หลังซ้ายนอก (1)",
       newPosition: "หลังซ้ายนอก (1)",
       notes: "ยางสึกด้านในมากกว่าด้านนอก"
     },
@@ -56,6 +57,7 @@ const TireRotation = () => {
       cost: 200,
       description: "หมุนยางตามระยะทางปกติ",
       performedBy: "ช่างสมศักดิ์",
+      position: "หน้าซ้าย",
       newPosition: "หน้าซ้าย",
       notes: ""
     },

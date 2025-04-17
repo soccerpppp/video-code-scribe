@@ -29,7 +29,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, FileText, Loader2 } from "lucide-react";
 import { ActivityLog } from "@/types/models";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, snakeToCamel } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
 const TireSale = () => {
@@ -92,18 +92,20 @@ const TireSale = () => {
       
       if (tiresError) throw tiresError;
       
-      // Transform the fetched data
-      const formattedVehicles = vehiclesData.map(vehicle => ({
+      // Transform the fetched data with the snakeToCamel helper
+      const formattedSales: ActivityLog[] = snakeToCamel<ActivityLog[]>(saleLogs || []);
+      
+      const formattedVehicles = vehiclesData?.map(vehicle => ({
         id: vehicle.id,
         name: `${vehicle.registration_number} (${vehicle.brand})`
-      }));
+      })) || [];
       
-      const formattedExpiredTires = tiresData.map(tire => ({
+      const formattedExpiredTires = tiresData?.map(tire => ({
         id: tire.id,
         name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.status}`
-      }));
+      })) || [];
       
-      setSales(saleLogs || []);
+      setSales(formattedSales);
       setVehicles(formattedVehicles);
       setExpiredTires(formattedExpiredTires);
       
