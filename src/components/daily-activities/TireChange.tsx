@@ -45,6 +45,23 @@ interface TireChangeLog {
   notes: string;
 }
 
+interface Vehicle {
+  id: string;
+  registrationNumber: string;
+  brand: string;
+  model: string;
+}
+
+interface Tire {
+  id: string;
+  serialNumber: string;
+  brand: string;
+  size: string;
+  type: string;
+  status: string;
+  vehicleId?: string;
+}
+
 const TireChange = () => {
   const [changes, setChanges] = useState<TireChangeLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,35 +117,35 @@ const TireChange = () => {
       if (tiresError) throw tiresError;
       
       // Transform the fetched data
-      const formattedVehicles = vehiclesData.map(vehicle => ({
+      const formattedVehicles = vehiclesData.map((vehicle: Vehicle) => ({
         id: vehicle.id,
-        name: `${vehicle.registration_number} (${vehicle.brand})`
+        name: `${vehicle.registrationNumber} (${vehicle.brand})`
       }));
       
-      const formattedTires = tiresData.map(tire => ({
+      const formattedTires = tiresData.map((tire: Tire) => ({
         id: tire.id,
-        name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.status}`
+        name: `${tire.serialNumber} (${tire.brand} ${tire.size}) - ${tire.status}`
       }));
 
       // Filter tires for new ones (active, not installed)
       const formattedNewTires = tiresData
-        .filter(tire => tire.status === 'active' && !tire.vehicle_id)
-        .map(tire => ({
+        .filter((tire: Tire) => tire.status === 'active' && !tire.vehicleId)
+        .map((tire: Tire) => ({
           id: tire.id,
-          name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}`
+          name: `${tire.serialNumber} (${tire.brand} ${tire.size}) - ${tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}`
         }));
       
       // Format change logs to the component's format
-      const formattedChanges: TireChangeLog[] = changeLogs?.map(log => ({
+      const formattedChanges: TireChangeLog[] = changeLogs?.map((log: ActivityLog) => ({
         id: log.id,
         date: log.date,
-        vehicleId: log.vehicle_id || '',
-        tireId: log.tire_id || '',
-        newTireId: log.new_tire_id,
+        vehicleId: log.vehicleId || '',
+        tireId: log.tireId || '',
+        newTireId: log.newTireId,
         mileage: log.mileage || 0,
         cost: log.cost || 0,
         description: log.description || '',
-        performedBy: log.performed_by || '',
+        performedBy: log.performedBy || '',
         notes: log.notes || ''
       })) || [];
       
@@ -179,14 +196,14 @@ const TireChange = () => {
       // Create activity log for tire change
       const activityLog = {
         date: formData.date,
-        activity_type: 'change',
-        tire_id: formData.oldTireId,
-        vehicle_id: formData.vehicleId,
+        activityType: 'change',
+        tireId: formData.oldTireId,
+        vehicleId: formData.vehicleId,
         mileage: formData.mileage,
         cost: formData.cost,
         description: formData.description,
-        performed_by: formData.performedBy,
-        new_tire_id: formData.newTireId,
+        performedBy: formData.performedBy,
+        newTireId: formData.newTireId,
         notes: formData.notes
       };
       
@@ -201,9 +218,8 @@ const TireChange = () => {
         .from('tires')
         .update({ 
           status: 'maintenance', 
-          vehicle_id: null,
+          vehicleId: null,
           position: null,
-          updated_at: new Date().toISOString()
         })
         .eq('id', formData.oldTireId);
         
@@ -214,8 +230,7 @@ const TireChange = () => {
         .from('tires')
         .update({ 
           status: 'active', 
-          vehicle_id: formData.vehicleId,
-          updated_at: new Date().toISOString()
+          vehicleId: formData.vehicleId,
         })
         .eq('id', formData.newTireId);
         
@@ -262,11 +277,6 @@ const TireChange = () => {
   const getVehicleName = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
     return vehicle ? vehicle.name.split(' ')[0] : '-';
-  };
-
-  const getNewTireName = (tireId: string) => {
-    const tire = newTires.find(t => t.id === tireId);
-    return tire ? tire.name.split(' ')[0] : '-';
   };
 
   return (
