@@ -100,5 +100,97 @@ type CustomSchema = {
 // Extend the Database type with custom tables
 type ExtendedDatabase = Database & CustomSchema;
 
-// Export the extended client
-export const supabase = createClient<ExtendedDatabase>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Function to transform snake_case to camelCase
+const toCamelCase = (obj: any): any => {
+  if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
+  
+  if (Array.isArray(obj)) {
+    return obj.map(v => toCamelCase(v));
+  }
+  
+  const camelCaseObj: any = {};
+  
+  Object.keys(obj).forEach(key => {
+    const camelCaseKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    camelCaseObj[camelCaseKey] = toCamelCase(obj[key]);
+  });
+  
+  return camelCaseObj;
+};
+
+// Function to transform camelCase to snake_case
+const toSnakeCase = (obj: any): any => {
+  if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
+  
+  if (Array.isArray(obj)) {
+    return obj.map(v => toSnakeCase(v));
+  }
+  
+  const snakeCaseObj: any = {};
+  
+  Object.keys(obj).forEach(key => {
+    const snakeCaseKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    snakeCaseObj[snakeCaseKey] = toSnakeCase(obj[key]);
+  });
+  
+  return snakeCaseObj;
+};
+
+// Create the Supabase client with auto transformations
+const supabaseClient = createClient<ExtendedDatabase>(
+  SUPABASE_URL, 
+  SUPABASE_PUBLISHABLE_KEY, 
+  {
+    global: {
+      headers: {
+        'x-app-version': '1.0.0',
+      },
+    },
+  }
+);
+
+// Enhance the client with auto transform capabilities
+export const supabase = {
+  ...supabaseClient,
+  // Override from method to automatically transform responses
+  from: (table: string) => {
+    const original = supabaseClient.from(table);
+    
+    // Override the select method to transform responses
+    const originalSelect = original.select;
+    original.select = function(columns) {
+      const query = originalSelect.call(this, columns);
+      
+      // Override the then method to transform data
+      const originalThen = query.then;
+      query.then = function(onFulfilled, onRejected) {
+        return originalThen.call(
+          this,
+          (result) => {
+            if (result.data) {
+              result.data = toCamelCase(result.data);
+            }
+            return onFulfilled ? onFulfilled(result) : result;
+          },
+          onRejected
+        );
+      };
+      
+      return query;
+    };
+    
+    // Override the insert method to transform data
+    const originalInsert = original.insert;
+    original.insert = function(values, options) {
+      return originalInsert.call(this, toSnakeCase(values), options);
+    };
+    
+    // Override the update method to transform data
+    const originalUpdate = original.update;
+    original.update = function(values, options) {
+      return originalUpdate.call(this, toSnakeCase(values), options);
+    };
+    
+    return original;
+  },
+};

@@ -52,25 +52,21 @@ export interface Supplier {
 export interface ActivityLog {
   id: string;
   date: string;
-  activityType: 
-    | 'repair' // ซ่อมยาง
-    | 'change' // เปลี่ยนยาง
-    | 'rotation' // หมุนยาง 
-    | 'measure' // วัดความลึกดอกยาง
-    | 'retreading' // ส่งหล่อดอกยาง
-    | 'sale'; // ขายยาง
-  tireId: string;
-  vehicleId: string;
-  mileage: number;
-  cost: number;
-  description: string;
-  performedBy: string;
-  newTireId?: string; // กรณีเปลี่ยนยาง
-  newPosition?: string; // กรณีหมุนยาง
-  measurementValue?: number; // กรณีวัดความลึกดอกยาง
-  salePrice?: number; // กรณีขายยาง
-  buyer?: string; // กรณีขายยาง
+  activityType: string;
+  tireId?: string;
+  vehicleId?: string;
+  position?: string;
+  mileage?: number;
+  cost?: number;
+  description?: string;
+  performedBy?: string;
+  measurementValue?: number;
+  newTireId?: string;
+  salePrice?: number;
+  buyer?: string;
   notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // โมเดลสำหรับผลลัพธ์การวิเคราะห์การสึกหรอของยาง
