@@ -110,8 +110,8 @@ const RealTimeCalculation = () => {
           current_age_days: calc.current_age_days,
           tread_depth_mm: calc.tread_depth_mm,
           predicted_wear_percentage: calc.predicted_wear_percentage,
-          predicted_lifespan: calc.predicted_lifespan || undefined,
-          wear_formula: calc.wear_formula || undefined,
+          predicted_lifespan: calc.predicted_lifespan,
+          wear_formula: calc.wear_formula,
           status_code: calc.status_code as 'normal' | 'warning' | 'critical' | 'error' | undefined,
           tire_id: calc.tire_id,
           vehicle_id: calc.vehicle_id,
@@ -173,7 +173,7 @@ const RealTimeCalculation = () => {
         analysisType: mappedAnalysisType
       });
 
-      // Prepare data for database insertion - INCLUDE ALL NEEDED FIELDS
+      // Prepare data for database insertion - explicitly include all fields
       const dataToInsert = {
         tire_id: selectedTire,
         vehicle_id: selectedVehicle,
