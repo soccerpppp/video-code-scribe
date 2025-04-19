@@ -1,311 +1,183 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, RefreshCcw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { toast } from "@/components/ui/use-toast";
+import { Loader2, Calculator, History, FileSpreadsheet } from "lucide-react";
 import { TireWearCalculationForm } from "@/components/tire-wear/TireWearCalculationForm";
-import { TireWearResultDialog } from "@/components/tire-wear/TireWearResultDialog";
 import { TireWearHistoryPanel } from "@/components/tire-wear/TireWearHistoryPanel";
+import { TireWearResultDialog } from "@/components/tire-wear/TireWearResultDialog";
+import TireWearAdvancedCalculation from "@/components/tire-wear/TireWearAdvancedCalculation";
+import { TireWearExcelImporter } from "@/components/tire-wear/TireWearExcelImporter";
+import { Tire, Vehicle, TireWearCalculation as TireWearCalculationType } from "@/types/models";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
-import { Tire, Vehicle, TireWearCalculation } from "@/types/models";
+import { supabase } from "@/integrations/supabase/client";
 
-interface TireFromDB {
-  id: string;
-  serial_number: string;
-  brand: string;
-  model: string;
-  size: string;
-  type: string;
-  position: string | null;
-  vehicle_id: string | null;
-  purchase_date: string;
-  purchase_price: number;
-  supplier: string;
-  status: string;
-  tread_depth: number;
-  mileage: number;
-  notes?: string;
-}
-
-interface VehicleFromDB {
-  id: string;
-  registration_number: string;
-  brand: string;
-  model: string;
-  type: string;
-  wheel_positions: number;
-  current_mileage: number;
-  notes?: string;
-}
-
-interface TireWearCalculationFromDB {
-  id: string;
-  calculation_date: string;
-  current_mileage: number;
-  current_age_days: number;
-  tread_depth_mm: number;
-  predicted_wear_percentage: number;
-  tire_id: string;
-  vehicle_id: string;
-  created_at: string;
-  recommendation: string;
-  updated_at: string;
-  analysis_method: string;
-  notes: string;
-  analysis_result: string;
-  analysis_type: string; // Changed from the specific union type to string to match DB response
-}
-
-const RealTimeCalculation: React.FC = () => {
-  const navigate = useNavigate();
+const RealTimeCalculation = () => {
   const [tires, setTires] = useState<Tire[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [calculations, setCalculations] = useState<TireWearCalculation[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("advanced");
+  const [calculationResults, setCalculationResults] = useState<TireWearCalculationType[]>([]);
+  const [showResultDialog, setShowResultDialog] = useState(false);
   
-  const [selectedTire, setSelectedTire] = useState<string>('');
-  const [selectedVehicle, setSelectedVehicle] = useState<string>('');
-  const [currentMileage, setCurrentMileage] = useState<number>(0);
-  const [treadDepth, setTreadDepth] = useState<number>(0);
-  const [result, setResult] = useState<TireWearCalculation | null>(null);
-  const [showResultDialog, setShowResultDialog] = useState<boolean>(false);
+  // Simple calculation state
+  const [selectedTire, setSelectedTire] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [currentMileage, setCurrentMileage] = useState(0);
+  const [treadDepth, setTreadDepth] = useState(0);
   const [analysisType, setAnalysisType] = useState<'predict_wear' | 'cluster_analysis' | 'time_series_prediction'>('predict_wear');
+  const [currentResult, setCurrentResult] = useState<any>(null);
 
-  const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
-    return {
-      id: dbTire.id,
-      serialNumber: dbTire.serial_number,
-      brand: dbTire.brand,
-      model: dbTire.model,
-      size: dbTire.size,
-      type: dbTire.type as 'new' | 'retreaded',
-      position: dbTire.position,
-      vehicleId: dbTire.vehicle_id,
-      purchaseDate: dbTire.purchase_date,
-      purchasePrice: dbTire.purchase_price,
-      supplier: dbTire.supplier,
-      status: dbTire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
-      treadDepth: dbTire.tread_depth,
-      mileage: dbTire.mileage,
-      notes: dbTire.notes
-    };
-  };
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const mapDbVehicleToVehicle = (dbVehicle: VehicleFromDB): Vehicle => {
-    return {
-      id: dbVehicle.id,
-      registrationNumber: dbVehicle.registration_number,
-      brand: dbVehicle.brand,
-      model: dbVehicle.model,
-      type: dbVehicle.type,
-      wheelPositions: dbVehicle.wheel_positions,
-      currentMileage: dbVehicle.current_mileage,
-      notes: dbVehicle.notes,
-      tirePositions: []
-    };
-  };
-
-  const mapDbCalculationToCalculation = (calc: TireWearCalculationFromDB): TireWearCalculation => {
-    // Validate and ensure analysis_type is one of the allowed values
-    let validAnalysisType: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' = 'predict_wear';
-    
-    if (calc.analysis_type === 'predict_wear' || 
-        calc.analysis_type === 'cluster_analysis' || 
-        calc.analysis_type === 'time_series_prediction') {
-      validAnalysisType = calc.analysis_type;
-    }
-    
-    return {
-      id: calc.id,
-      calculation_date: calc.calculation_date,
-      current_mileage: calc.current_mileage,
-      current_age_days: calc.current_age_days,
-      tread_depth_mm: calc.tread_depth_mm,
-      predicted_wear_percentage: calc.predicted_wear_percentage,
-      tire_id: calc.tire_id,
-      vehicle_id: calc.vehicle_id,
-      created_at: calc.created_at,
-      updated_at: calc.updated_at,
-      analysis_method: calc.analysis_method,
-      analysis_result: calc.analysis_result,
-      recommendation: calc.recommendation,
-      notes: calc.notes,
-      analysis_type: validAnalysisType
-    };
-  };
-
-  const loadData = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [vehiclesData, tiresData, calculationsData] = await Promise.all([
-        supabase.from('vehicles').select('*').order('registration_number', { ascending: true }),
-        supabase.from('tires').select('*').order('serial_number', { ascending: true }),
-        supabase.from('tire_wear_calculations')
-          .select('*')
-          .order('calculation_date', { ascending: false })
-          .limit(10)
-      ]);
+      // Fetch tires data
+      const { data: tiresData, error: tiresError } = await supabase
+        .from('tires')
+        .select('*')
+        .order('serial_number', { ascending: true });
+      
+      if (tiresError) throw tiresError;
 
-      if (vehiclesData.error) throw vehiclesData.error;
-      if (tiresData.error) throw tiresData.error;
-      if (calculationsData.error) throw calculationsData.error;
+      // Fetch vehicles data
+      const { data: vehiclesData, error: vehiclesError } = await supabase
+        .from('vehicles')
+        .select('*')
+        .order('registration_number', { ascending: true });
+      
+      if (vehiclesError) throw vehiclesError;
 
-      setVehicles(vehiclesData.data ? vehiclesData.data.map(mapDbVehicleToVehicle) : []);
-      setTires(tiresData.data ? tiresData.data.map(mapDbTireToTire) : []);
-      setCalculations(calculationsData.data ? calculationsData.data.map(mapDbCalculationToCalculation) : []);
-    } catch (error: any) {
-      console.error("Error loading data from Supabase:", error);
+      // Fetch calculation history
+      const { data: historyData, error: historyError } = await supabase
+        .from('tire_wear_calculations')
+        .select('*')
+        .order('calculation_date', { ascending: false });
+      
+      if (historyError) throw historyError;
+      
+      // Transform data for component consumption
+      const formattedTires: Tire[] = tiresData?.map(tire => ({
+        id: tire.id,
+        serialNumber: tire.serial_number,
+        brand: tire.brand,
+        model: tire.model,
+        size: tire.size,
+        type: tire.type as 'new' | 'retreaded',
+        position: tire.position,
+        vehicleId: tire.vehicle_id,
+        purchaseDate: tire.purchase_date,
+        purchasePrice: tire.purchase_price,
+        supplier: tire.supplier,
+        status: tire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
+        treadDepth: tire.tread_depth,
+        mileage: tire.mileage,
+        notes: tire.notes
+      })) || [];
+      
+      const formattedVehicles: Vehicle[] = vehiclesData?.map(vehicle => ({
+        id: vehicle.id,
+        registrationNumber: vehicle.registration_number,
+        brand: vehicle.brand,
+        model: vehicle.model,
+        type: vehicle.type,
+        wheelPositions: vehicle.wheel_positions,
+        currentMileage: vehicle.current_mileage,
+        notes: vehicle.notes,
+        tirePositions: [] // We'll need to fetch this separately if needed
+      })) || [];
+      
+      setTires(formattedTires);
+      setVehicles(formattedVehicles);
+      setCalculationResults(historyData || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถโหลดข้อมูลได้",
+        description: "ไม่สามารถดึงข้อมูลได้",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (selectedVehicle) {
-      const vehicle = vehicles.find(v => v.id === selectedVehicle);
-      if (vehicle) {
-        setCurrentMileage(vehicle.currentMileage);
-      }
-    }
-  }, [selectedVehicle, vehicles]);
-
-  useEffect(() => {
-    if (selectedTire) {
-      const tire = tires.find(t => t.id === selectedTire);
-      if (tire) {
-        setTreadDepth(tire.treadDepth);
-      }
-    }
-  }, [selectedTire, tires]);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadData();
-    setIsRefreshing(false);
-    
-    toast({
-      title: "รีเฟรชข้อมูลสำเร็จ",
-      description: "ข้อมูลได้รับการอัปเดตล่าสุดแล้ว",
-      variant: "default"
-    });
-  };
 
   const handleCalculate = async () => {
+    if (!selectedTire || !selectedVehicle || currentMileage <= 0 || treadDepth <= 0) {
+      toast({
+        title: "ข้อมูลไม่ครบถ้วน",
+        description: "กรุณากรอกข้อมูลให้ครบถ้วน",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    
     try {
-      setIsSaving(true);
-      
+      // Get tire details
       const tire = tires.find(t => t.id === selectedTire);
-      const vehicle = vehicles.find(v => v.id === selectedVehicle);
-      
-      if (!tire || !vehicle) {
-        throw new Error("ไม่พบข้อมูลยางหรือยานพาหนะที่เลือก");
+      if (!tire) {
+        throw new Error("ไม่พบข้อมูลยาง");
       }
       
-      const analysisResult = calculateTireWear({
+      // Calculate tire wear
+      const result = calculateTireWear({
         tireId: selectedTire,
         vehicleId: selectedVehicle,
         currentMileage,
         treadDepth,
         purchaseDate: tire.purchaseDate,
-        initialTreadDepth: tire.type === 'new' ? 10 : 8,
+        initialTreadDepth: tire.type === 'new' ? 15 : undefined, // Example default for new tire
         analysisType
       });
-      
-      const calculationData = {
-        tire_id: selectedTire,
-        vehicle_id: selectedVehicle,
-        current_mileage: currentMileage,
-        current_age_days: analysisResult.currentAgeDays,
-        tread_depth_mm: treadDepth,
-        predicted_wear_percentage: analysisResult.predictedWearPercentage,
-        analysis_method: analysisResult.analysisMethod,
-        analysis_result: analysisResult.analysisResult,
-        recommendation: analysisResult.recommendation,
-        notes: "การวัดปกติ",
-        analysis_type: analysisType
-      };
-      
-      const { data: calculationRecord, error: calculationError } = await supabase
+
+      // Save calculation to database
+      const { error } = await supabase
         .from('tire_wear_calculations')
-        .insert(calculationData)
-        .select()
-        .single();
+        .insert({
+          tire_id: selectedTire,
+          vehicle_id: selectedVehicle,
+          calculation_date: new Date().toISOString(),
+          current_mileage: currentMileage,
+          current_age_days: result.currentAgeDays,
+          tread_depth_mm: treadDepth,
+          predicted_wear_percentage: result.predictedWearPercentage,
+          predicted_lifespan: result.predictedLifespan,
+          wear_formula: result.wearFormula,
+          status_code: result.statusCode,
+          analysis_type: analysisType,
+          analysis_method: result.analysisMethod,
+          analysis_result: result.analysisResult,
+          recommendation: result.recommendation
+        });
       
-      if (calculationError) throw calculationError;
+      if (error) throw error;
       
-      const { error: tireUpdateError } = await supabase
-        .from('tires')
-        .update({ 
-          tread_depth: treadDepth,
-          mileage: tire.mileage + (currentMileage - vehicle.currentMileage),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedTire);
-      
-      if (tireUpdateError) throw tireUpdateError;
-      
-      if (currentMileage !== vehicle.currentMileage) {
-        const { error: vehicleUpdateError } = await supabase
-          .from('vehicles')
-          .update({ 
-            current_mileage: currentMileage,
-            updated_at: new Date().toISOString() 
-          })
-          .eq('id', selectedVehicle);
-        
-        if (vehicleUpdateError) throw vehicleUpdateError;
-      }
-      
-      // Create a proper typed TireWearCalculation result
-      const calculationResult: TireWearCalculation = {
-        ...mapDbCalculationToCalculation(calculationRecord),
-        predicted_lifespan: analysisResult.predictedLifespan,
-        wear_formula: analysisResult.wearFormula,
-        status_code: analysisResult.statusCode
-      };
-      
-      setCalculations(prev => [calculationResult, ...prev.slice(0, 9)]);
-      setResult(calculationResult);
+      setCurrentResult(result);
       setShowResultDialog(true);
       
-      // Update local tire data to reflect the changes
-      setTires(prevTires => 
-        prevTires.map(t => 
-          t.id === selectedTire 
-            ? { ...t, treadDepth, mileage: t.mileage + (currentMileage - vehicle.currentMileage) } 
-            : t
-        )
-      );
-      
-      // Update local vehicle data to reflect the changes
-      setVehicles(prevVehicles => 
-        prevVehicles.map(v => 
-          v.id === selectedVehicle 
-            ? { ...v, currentMileage } 
-            : v
-        )
-      );
+      // Refresh calculation history
+      fetchData();
       
       toast({
-        title: "บันทึกสำเร็จ",
-        description: "ผลการคำนวณการสึกหรอของยางได้ถูกบันทึกแล้ว",
-        variant: "default"
+        title: "คำนวณสำเร็จ",
+        description: "บันทึกผลการวิเคราะห์การสึกหรอเรียบร้อยแล้ว",
       });
+      
     } catch (error: any) {
-      console.error("Error in tire wear calculation:", error);
+      console.error("Error calculating tire wear:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: error.message || "ไม่สามารถคำนวณการสึกหรอได้",
@@ -316,91 +188,80 @@ const RealTimeCalculation: React.FC = () => {
     }
   };
 
-  const getTireName = (id: string) => {
-    const tire = tires.find(t => t.id === id);
-    return tire ? `${tire.brand} ${tire.model} (${tire.serialNumber})` : id;
-  };
-  
-  const getVehicleName = (id: string) => {
-    const vehicle = vehicles.find(v => v.id === id);
-    return vehicle ? `${vehicle.brand} ${vehicle.model} (${vehicle.registrationNumber})` : id;
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-lg">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary shadow-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Button 
-                variant="ghost" 
-                className="mr-4 text-white" 
-                onClick={() => navigate("/")}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-2xl font-bold text-white">คำนวณเรียวทาม</h1>
-            </div>
-            <Button
-              variant="outline"
-              className="bg-white text-primary hover:bg-gray-100" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCcw className="h-4 w-4 mr-2" />
-              )}
-              รีเฟรชข้อมูล
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="container mx-auto py-8 px-4">
+      <h1 className="text-3xl font-bold mb-6">การคำนวณการสึกหรอแบบเรียลไทม์</h1>
 
-      <main className="container mx-auto px-4 py-8">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
-              <TireWearCalculationForm
-                tires={tires}
-                vehicles={vehicles}
-                selectedTire={selectedTire}
-                selectedVehicle={selectedVehicle}
-                currentMileage={currentMileage}
-                treadDepth={treadDepth}
-                isSaving={isSaving}
-                onTireChange={setSelectedTire}
-                onVehicleChange={setSelectedVehicle}
-                onMileageChange={setCurrentMileage}
-                onTreadDepthChange={setTreadDepth}
-                onCalculate={handleCalculate}
-                analysisType={analysisType}
-                onAnalysisTypeChange={setAnalysisType}
-              />
-            </div>
-            
-            <div className="md:col-span-1">
-              <TireWearHistoryPanel
-                calculations={calculations}
-                getTireName={getTireName}
-              />
-            </div>
-          </div>
-        )}
-      </main>
+      <div className="mb-6">
+        <TireWearExcelImporter 
+          tires={tires}
+          vehicles={vehicles}
+          onImportComplete={fetchData}
+        />
+      </div>
       
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="advanced">
+            <Calculator className="h-4 w-4 mr-2" />
+            การคำนวณแบบละเอียด
+          </TabsTrigger>
+          <TabsTrigger value="simple">
+            <Calculator className="h-4 w-4 mr-2" />
+            การคำนวณพื้นฐาน
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="advanced" className="pt-4">
+          <TireWearAdvancedCalculation />
+        </TabsContent>
+        <TabsContent value="simple" className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <TireWearCalculationForm
+              tires={tires}
+              vehicles={vehicles}
+              selectedTire={selectedTire}
+              selectedVehicle={selectedVehicle}
+              currentMileage={currentMileage}
+              treadDepth={treadDepth}
+              isSaving={isSaving}
+              onTireChange={setSelectedTire}
+              onVehicleChange={setSelectedVehicle}
+              onMileageChange={setCurrentMileage}
+              onTreadDepthChange={setTreadDepth}
+              onCalculate={handleCalculate}
+              analysisType={analysisType}
+              onAnalysisTypeChange={setAnalysisType}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <TireWearHistoryPanel
+              calculationHistory={calculationResults}
+              tires={tires}
+              vehicles={vehicles}
+              onRefresh={fetchData}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
+      
+      {/* Results Dialog */}
       <TireWearResultDialog
         open={showResultDialog}
         onOpenChange={setShowResultDialog}
-        result={result}
-        getTireName={getTireName}
-        getVehicleName={getVehicleName}
+        result={currentResult}
+        tire={tires.find(t => t.id === selectedTire)}
+        vehicle={vehicles.find(v => v.id === selectedVehicle)}
       />
     </div>
   );

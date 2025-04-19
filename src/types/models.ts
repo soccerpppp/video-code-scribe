@@ -73,14 +73,25 @@ export interface ActivityLog {
 
 // โมเดลสำหรับผลลัพธ์การวิเคราะห์การสึกหรอของยาง
 export interface TireWearAnalysisResult {
-  analysisMethod: string;
+  tireId: string;
+  currentDepth: number;
+  position?: string;
   currentAgeDays: number;
-  predictedWearPercentage: number;
-  predictedLifespan: number;
+  wearRatePerDay: number;
+  wearRatePer1000Km: number;
+  remainingDepthToLegal: number;
+  remainingDepthToSafety: number;
+  daysToLegal: number;
+  daysToSafety: number;
+  predictedDateLegal: Date;
+  predictedDateSafety: Date;
+  statusCode: 'normal' | 'warning' | 'critical' | 'error';
+  status: string;
+  analysisMethod: string;
   analysisResult: string;
   recommendation: string;
   wearFormula: string;
-  statusCode: 'normal' | 'warning' | 'critical' | 'error';
+  confidenceLevel: 'high' | 'medium' | 'low';
 }
 
 // โมเดลสำหรับการคำนวณความเสียหายของยาง
@@ -102,5 +113,5 @@ export interface TireWearCalculation {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  analysis_type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
+  analysis_type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' | 'standard_prediction' | 'statistical_regression' | 'position_based';
 }
