@@ -219,9 +219,7 @@ function calculateStandardPrediction(params: TireWearCalculationParams): TireWea
   const wearFormula = `อัตราการสึกหรอ: ${wearRatePerDay.toFixed(4)} มม./วัน, ${wearRatePer1000Km.toFixed(4)} มม./1000กม.`;
   const analysisMethod = 'การวิเคราะห์แบบมาตรฐาน ใช้ข้อมูลการวัด' + (params.measurementHistory ? `${params.measurementHistory.length} ครั้ง` : '1 ครั้ง');
   
-  // Calculate the predicted wear percentage based on the initial depth and current depth
-  const initialDepth = params.initialTreadDepth || DEFAULT_TREAD_DEPTH_NEW_TIRE;
-  const currentDepth = params.treadDepth;
+  // Calculate the predicted wear percentage
   const predictedWearPercentage = ((initialDepth - currentDepth) / initialDepth) * 100;
   
   // Calculate the estimated remaining lifespan in kilometers
@@ -321,11 +319,11 @@ function calculateStatisticalRegression(params: TireWearCalculationParams): Tire
   const predictedCurrentDepth = intercept + slope * currentDaysFromFirst;
   
   // ใช้ค่าที่วัดได้จริงล่าสุดหรือค่าที่คำนวณได้จากโมเดล
-  const currentDepth = params.treadDepth;
+  const usedCurrentDepth = params.treadDepth;
   
   // คำนวณวันที่จะถึงเกณฑ์ความปลอดภัยและเกณฑ์กฎหมาย
-  const daysToLegal = wearRatePerDay > 0 ? Math.max(0, Math.floor((currentDepth - LEGAL_LIMIT) / wearRatePerDay)) : 9999;
-  const daysToSafety = wearRatePerDay > 0 ? Math.max(0, Math.floor((currentDepth - SAFETY_LIMIT) / wearRatePerDay)) : 9999;
+  const daysToLegal = wearRatePerDay > 0 ? Math.max(0, Math.floor((usedCurrentDepth - LEGAL_LIMIT) / wearRatePerDay)) : 9999;
+  const daysToSafety = wearRatePerDay > 0 ? Math.max(0, Math.floor((usedCurrentDepth - SAFETY_LIMIT) / wearRatePerDay)) : 9999;
   
   // คำนวณวันที่คาดว่าจะถึงเกณฑ์
   const predictedDateLegal = new Date();
@@ -340,21 +338,21 @@ function calculateStatisticalRegression(params: TireWearCalculationParams): Tire
   let statusCode: 'normal' | 'warning' | 'critical' | 'error' = 'normal';
   let recommendation = '';
   
-  if (currentDepth <= LEGAL_LIMIT) {
+  if (usedCurrentDepth <= LEGAL_LIMIT) {
     status = 'ต้องเปลี่ยนทันที (ต่ำกว่าเกณฑ์กฎหมาย)';
     statusCode = 'critical';
     recommendation = 'ควรเปลี่ยนยางทันที เนื่องจากความลึกดอกยางต่ำกว่าเกณฑ์ปลอดภัยตามกฎหมาย';
-    analysisResult = `ความลึกดอกยางต่ำกว่าเกณฑ์กฎหมาย (${currentDepth.toFixed(1)} < ${LEGAL_LIMIT} มม.)`;
-  } else if (currentDepth <= SAFETY_LIMIT) {
+    analysisResult = `ความลึกดอกยางต่ำกว่าเกณฑ์กฎหมาย (${usedCurrentDepth.toFixed(1)} < ${LEGAL_LIMIT} มม.)`;
+  } else if (usedCurrentDepth <= SAFETY_LIMIT) {
     status = 'แนะนำให้เปลี่ยน (เพื่อความปลอดภัย)';
     statusCode = 'warning';
     recommendation = 'ควรวางแผนเปลี่ยนยางภายใน 1-2 สัปดาห์';
-    analysisResult = `ความลึกดอกยางต่ำกว่าเกณฑ์ความปลอดภัย (${currentDepth.toFixed(1)} < ${SAFETY_LIMIT} มม.) คาดว่าจะถึงเกณฑ์กฎหมายใน ${daysToLegal} วัน`;
+    analysisResult = `ความลึกดอกยางต่ำกว่าเกณฑ์ความปลอดภัย (${usedCurrentDepth.toFixed(1)} < ${SAFETY_LIMIT} มม.) คาดว่าจะถึงเกณฑ์กฎหมายใน ${daysToLegal} วัน`;
   } else {
     status = 'ใช้งานได้ปกติ';
     statusCode = 'normal';
     recommendation = 'ยางมีสภาพดี สามารถใช้งานต่อได้ปกติ';
-    analysisResult = `ความลึกดอกยางอยู่ในเกณฑ์ปกติ (${currentDepth.toFixed(1)} มม.) คาดว่าจะถึงเกณฑ์ความปลอดภัยใน ${daysToSafety} วัน และถึงเกณฑ์กฎหมายใน ${daysToLegal} วัน`;
+    analysisResult = `ความลึกดอกยางอยู่ในเกณฑ์ปกติ (${usedCurrentDepth.toFixed(1)} มม.) คาดว่าจะถึงเกณฑ์ความปลอดภัยใน ${daysToSafety} วัน และถึงเกณฑ์กฎหมายใน ${daysToLegal} วัน`;
   }
   
   // สร้างสูตรและวิธีการคำนวณที่ใช้
@@ -363,13 +361,13 @@ function calculateStatisticalRegression(params: TireWearCalculationParams): Tire
   
   return {
     tireId: params.tireId,
-    currentDepth,
+    currentDepth: usedCurrentDepth,
     position: params.position,
     currentAgeDays: baseResult.currentAgeDays,
     wearRatePerDay,
     wearRatePer1000Km,
-    remainingDepthToLegal: Math.max(0, currentDepth - LEGAL_LIMIT),
-    remainingDepthToSafety: Math.max(0, currentDepth - SAFETY_LIMIT),
+    remainingDepthToLegal: Math.max(0, usedCurrentDepth - LEGAL_LIMIT),
+    remainingDepthToSafety: Math.max(0, usedCurrentDepth - SAFETY_LIMIT),
     daysToLegal,
     daysToSafety,
     predictedDateLegal,

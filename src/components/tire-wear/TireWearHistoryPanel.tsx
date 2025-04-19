@@ -50,22 +50,27 @@ export function TireWearHistoryPanel({ calculations, tires, vehicles, onRefresh 
       <CardContent className="max-h-80 overflow-y-auto">
         {calculations && calculations.length > 0 ? (
           <div className="space-y-4">
-            {calculations.map(calc => (
-              <div key={calc.id} className="border rounded-md p-3 bg-gray-50">
-                <div className="flex items-center gap-2 mb-1">
-                  {getStatusIcon(getStatusCodeFromResult(calc.analysis_result))}
-                  <span className="font-medium">
-                    {new Date(calc.calculation_date).toLocaleDateString('th-TH')}
-                  </span>
+            {calculations.map(calc => {
+              // Use status_code if available, otherwise determine from analysis_result
+              const statusCode = calc.status_code || getStatusCodeFromResult(calc.analysis_result);
+              
+              return (
+                <div key={calc.id} className="border rounded-md p-3 bg-gray-50">
+                  <div className="flex items-center gap-2 mb-1">
+                    {getStatusIcon(statusCode)}
+                    <span className="font-medium">
+                      {new Date(calc.calculation_date).toLocaleDateString('th-TH')}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-1">
+                    ยาง: {getTireName(calc.tire_id)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    การสึกหรอ: {calc.predicted_wear_percentage}%
+                  </p>
                 </div>
-                <p className="text-sm text-gray-600 mb-1">
-                  ยาง: {getTireName(calc.tire_id)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  การสึกหรอ: {calc.predicted_wear_percentage}%
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-gray-500 text-center py-4">ไม่มีประวัติการคำนวณ</p>

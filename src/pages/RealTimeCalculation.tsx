@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -117,7 +118,7 @@ const RealTimeCalculation = () => {
           analysis_method: calc.analysis_method,
           analysis_result: calc.analysis_result,
           recommendation: calc.recommendation,
-          notes: calc.notes,
+          notes: calc.notes || undefined,
           created_at: calc.created_at,
           updated_at: calc.updated_at,
           analysis_type: analysisType
@@ -245,23 +246,9 @@ const RealTimeCalculation = () => {
   };
   
   // Helper function to map analysis types to those that calculator supports
-  const mapAnalysisTypeForCalculator = (type: TireWearAnalysisTypeUnified): 'standard_prediction' | 'statistical_regression' | 'position_based' => {
-    switch(type) {
-      case 'predict_wear':
-        return 'standard_prediction';
-      case 'cluster_analysis':
-        return 'standard_prediction';
-      case 'time_series_prediction':
-        return 'statistical_regression';
-      case 'standard_prediction':
-        return 'standard_prediction';
-      case 'statistical_regression':
-        return 'statistical_regression';
-      case 'position_based':
-        return 'position_based';
-      default:
-        return 'standard_prediction';
-    }
+  const mapAnalysisTypeForCalculator = (type: TireWearAnalysisTypeUnified): 'standard_prediction' | 'statistical_regression' | 'position_based' | 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' => {
+    // Since we've updated the tire-wear-calculator.ts to accept all types, we can just return the type
+    return type;
   };
 
   if (isLoading) {
