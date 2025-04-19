@@ -92,6 +92,9 @@ export interface TireWearAnalysisResult {
   recommendation: string;
   wearFormula: string;
   confidenceLevel: 'high' | 'medium' | 'low';
+  // Add missing properties that are used in code
+  predictedWearPercentage?: number;
+  predictedLifespan?: number;
 }
 
 // โมเดลสำหรับการคำนวณความเสียหายของยาง

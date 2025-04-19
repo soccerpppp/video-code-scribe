@@ -15,7 +15,7 @@ import { TireWearHistoryPanel } from "@/components/tire-wear/TireWearHistoryPane
 import { TireWearResultDialog } from "@/components/tire-wear/TireWearResultDialog";
 import TireWearAdvancedCalculation from "@/components/tire-wear/TireWearAdvancedCalculation";
 import { TireWearExcelImporter } from "@/components/tire-wear/TireWearExcelImporter";
-import { Tire, Vehicle, TireWearCalculation as TireWearCalculationType } from "@/types/models";
+import { Tire, Vehicle, TireWearCalculation } from "@/types/models";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -25,7 +25,7 @@ const RealTimeCalculation = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("advanced");
-  const [calculationResults, setCalculationResults] = useState<TireWearCalculationType[]>([]);
+  const [calculationResults, setCalculationResults] = useState<TireWearCalculation[]>([]);
   const [showResultDialog, setShowResultDialog] = useState(false);
   
   // Simple calculation state
@@ -33,8 +33,8 @@ const RealTimeCalculation = () => {
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const [currentMileage, setCurrentMileage] = useState(0);
   const [treadDepth, setTreadDepth] = useState(0);
-  const [analysisType, setAnalysisType] = useState<'predict_wear' | 'cluster_analysis' | 'time_series_prediction'>('predict_wear');
-  const [currentResult, setCurrentResult] = useState<any>(null);
+  const [analysisType, setAnalysisType] = useState<'standard_prediction' | 'statistical_regression' | 'position_based'>('standard_prediction');
+  const [currentResult, setCurrentResult] = useState<TireWearCalculation | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -97,10 +97,32 @@ const RealTimeCalculation = () => {
         notes: vehicle.notes,
         tirePositions: [] // We'll need to fetch this separately if needed
       })) || [];
+
+      // Transform the calculation history data
+      const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => ({
+        id: calc.id,
+        calculation_date: calc.calculation_date,
+        current_mileage: calc.current_mileage,
+        current_age_days: calc.current_age_days,
+        tread_depth_mm: calc.tread_depth_mm,
+        predicted_wear_percentage: calc.predicted_wear_percentage,
+        predicted_lifespan: calc.predicted_lifespan,
+        wear_formula: calc.wear_formula,
+        status_code: calc.status_code as 'normal' | 'warning' | 'critical' | 'error',
+        tire_id: calc.tire_id,
+        vehicle_id: calc.vehicle_id,
+        analysis_method: calc.analysis_method,
+        analysis_result: calc.analysis_result,
+        recommendation: calc.recommendation,
+        notes: calc.notes,
+        created_at: calc.created_at,
+        updated_at: calc.updated_at,
+        analysis_type: (calc.analysis_type as 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' | 'standard_prediction' | 'statistical_regression' | 'position_based') || 'standard_prediction'
+      })) || [];
       
       setTires(formattedTires);
       setVehicles(formattedVehicles);
-      setCalculationResults(historyData || []);
+      setCalculationResults(formattedCalculations);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -143,8 +165,27 @@ const RealTimeCalculation = () => {
         analysisType
       });
 
+      // Create a TireWearCalculation object from the analysis result
+      const calculationResult: TireWearCalculation = {
+        id: '', // Will be set by the database
+        tire_id: selectedTire,
+        vehicle_id: selectedVehicle,
+        calculation_date: new Date().toISOString(),
+        current_mileage: currentMileage,
+        current_age_days: result.currentAgeDays,
+        tread_depth_mm: treadDepth,
+        predicted_wear_percentage: result.predictedWearPercentage || 0,
+        predicted_lifespan: result.predictedLifespan,
+        wear_formula: result.wearFormula,
+        status_code: result.statusCode,
+        analysis_type: analysisType,
+        analysis_method: result.analysisMethod,
+        analysis_result: result.analysisResult,
+        recommendation: result.recommendation
+      };
+
       // Save calculation to database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tire_wear_calculations')
         .insert({
           tire_id: selectedTire,
@@ -153,7 +194,7 @@ const RealTimeCalculation = () => {
           current_mileage: currentMileage,
           current_age_days: result.currentAgeDays,
           tread_depth_mm: treadDepth,
-          predicted_wear_percentage: result.predictedWearPercentage,
+          predicted_wear_percentage: result.predictedWearPercentage || 0,
           predicted_lifespan: result.predictedLifespan,
           wear_formula: result.wearFormula,
           status_code: result.statusCode,
@@ -161,15 +202,23 @@ const RealTimeCalculation = () => {
           analysis_method: result.analysisMethod,
           analysis_result: result.analysisResult,
           recommendation: result.recommendation
-        });
+        })
+        .select();
       
       if (error) throw error;
       
-      setCurrentResult(result);
-      setShowResultDialog(true);
-      
-      // Refresh calculation history
-      fetchData();
+      // If the insert was successful and we got back the inserted record
+      if (data && data.length > 0) {
+        // Update the currentResult with the database record
+        const insertedRecord = data[0];
+        calculationResult.id = insertedRecord.id;
+        
+        setCurrentResult(calculationResult);
+        setShowResultDialog(true);
+        
+        // Refresh calculation history
+        fetchData();
+      }
       
       toast({
         title: "คำนวณสำเร็จ",
@@ -246,7 +295,7 @@ const RealTimeCalculation = () => {
           </div>
           <div className="md:col-span-2">
             <TireWearHistoryPanel
-              calculationHistory={calculationResults}
+              calculations={calculationResults}
               tires={tires}
               vehicles={vehicles}
               onRefresh={fetchData}

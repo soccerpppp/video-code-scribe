@@ -2,23 +2,23 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TireWearCalculation } from "@/types/models";
+import { TireWearCalculation, Tire, Vehicle } from "@/types/models";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
 
 interface TireWearResultDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   result: TireWearCalculation | null;
-  getTireName: (id: string) => string;
-  getVehicleName: (id: string) => string;
+  tire?: Tire;
+  vehicle?: Vehicle;
 }
 
 export function TireWearResultDialog({
   open,
   onOpenChange,
   result,
-  getTireName,
-  getVehicleName
+  tire,
+  vehicle
 }: TireWearResultDialogProps) {
   const getStatusIcon = (status?: 'normal' | 'warning' | 'critical' | 'error') => {
     switch (status) {
@@ -33,6 +33,20 @@ export function TireWearResultDialog({
       default:
         return <Info className="h-8 w-8" />;
     }
+  };
+
+  const getTireName = (id: string): string => {
+    if (tire && tire.id === id) {
+      return `${tire.brand} ${tire.model} - ${tire.serialNumber}`;
+    }
+    return id;
+  };
+
+  const getVehicleName = (id: string): string => {
+    if (vehicle && vehicle.id === id) {
+      return `${vehicle.registrationNumber} - ${vehicle.brand} ${vehicle.model}`;
+    }
+    return id;
   };
 
   return (
@@ -71,7 +85,7 @@ export function TireWearResultDialog({
             
             <div className="bg-gray-50 p-3 rounded-md">
               <p className="text-sm text-gray-500 mb-1">สูตรคำนวณการสึกหรอ</p>
-              <p className="font-mono text-sm">{result.wear_formula}</p>
+              <p className="font-mono text-sm">{result.wear_formula || '-'}</p>
             </div>
             
             <div>

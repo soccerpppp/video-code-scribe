@@ -1,15 +1,17 @@
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { TireWearCalculation } from "@/types/models";
+import { TireWearCalculation, Tire, Vehicle } from "@/types/models";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
 
 interface TireWearHistoryPanelProps {
   calculations: TireWearCalculation[];
-  getTireName: (id: string) => string;
+  tires: Tire[];
+  vehicles: Vehicle[];
+  onRefresh: () => Promise<void>;
 }
 
-export function TireWearHistoryPanel({ calculations, getTireName }: TireWearHistoryPanelProps) {
+export function TireWearHistoryPanel({ calculations, tires, vehicles }: TireWearHistoryPanelProps) {
   const getStatusIcon = (status?: 'normal' | 'warning' | 'critical' | 'error') => {
     switch (status) {
       case 'normal':
@@ -33,6 +35,11 @@ export function TireWearHistoryPanel({ calculations, getTireName }: TireWearHist
     } else {
       return 'normal';
     }
+  };
+
+  const getTireName = (id: string): string => {
+    const tire = tires.find(t => t.id === id);
+    return tire ? `${tire.brand} ${tire.model} - ${tire.serialNumber}` : id;
   };
 
   return (
