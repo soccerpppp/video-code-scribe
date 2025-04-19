@@ -64,26 +64,45 @@ export const useTireWearData = () => {
         tirePositions: []
       })) || [];
 
-      const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => ({
-        id: calc.id,
-        calculation_date: calc.calculation_date,
-        current_mileage: calc.current_mileage,
-        current_age_days: calc.current_age_days,
-        tread_depth_mm: calc.tread_depth_mm,
-        predicted_wear_percentage: calc.predicted_wear_percentage,
-        predicted_lifespan: calc.predicted_lifespan || undefined,
-        wear_formula: calc.wear_formula || undefined,
-        status_code: calc.status_code as 'normal' | 'warning' | 'critical' | 'error' | undefined,
-        tire_id: calc.tire_id,
-        vehicle_id: calc.vehicle_id,
-        analysis_method: calc.analysis_method,
-        analysis_result: calc.analysis_result,
-        analysis_type: mapAnalysisType(calc.analysis_type),
-        recommendation: calc.recommendation,
-        notes: calc.notes || undefined,
-        created_at: calc.created_at,
-        updated_at: calc.updated_at
-      })) || [];
+      // Check the database structure of the calculation results
+      console.log("Raw calculation data from DB:", historyData?.[0]);
+
+      const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => {
+        // Calculate additional values for fields that don't exist in the database
+        const predictedLifespan = calc.current_mileage * (1 / (calc.predicted_wear_percentage / 100));
+        const wearFormula = `${calc.analysis_method}: ${calc.tread_depth_mm}mm / ${calc.current_mileage}km`;
+        let statusCode: 'normal' | 'warning' | 'critical' | 'error' | undefined = undefined;
+        
+        // Determine status code based on wear percentage
+        if (calc.predicted_wear_percentage >= 80) {
+          statusCode = 'critical';
+        } else if (calc.predicted_wear_percentage >= 60) {
+          statusCode = 'warning';
+        } else if (calc.predicted_wear_percentage >= 0) {
+          statusCode = 'normal';
+        }
+        
+        return {
+          id: calc.id,
+          calculation_date: calc.calculation_date,
+          current_mileage: calc.current_mileage,
+          current_age_days: calc.current_age_days,
+          tread_depth_mm: calc.tread_depth_mm,
+          predicted_wear_percentage: calc.predicted_wear_percentage,
+          predicted_lifespan: predictedLifespan,
+          wear_formula: wearFormula,
+          status_code: statusCode,
+          tire_id: calc.tire_id,
+          vehicle_id: calc.vehicle_id,
+          analysis_method: calc.analysis_method,
+          analysis_result: calc.analysis_result,
+          analysis_type: mapAnalysisType(calc.analysis_type),
+          recommendation: calc.recommendation,
+          notes: calc.notes || undefined,
+          created_at: calc.created_at,
+          updated_at: calc.updated_at
+        };
+      }) || [];
       
       setTires(formattedTires);
       setVehicles(formattedVehicles);

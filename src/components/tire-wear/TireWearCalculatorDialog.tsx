@@ -31,7 +31,7 @@ export function TireWearCalculatorDialog({
                 calculationResult.status_code === 'warning' ? 'text-yellow-600' : 
                 'text-green-600'
               }`}>
-                {calculationResult.status_code}
+                {calculationResult.status_code || 'normal'}
               </div>
               <div className="mt-2 text-sm">
                 ความลึกดอกยาง: {calculationResult.tread_depth_mm.toFixed(1)} มม.
