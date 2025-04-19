@@ -91,6 +91,42 @@ export type Database = {
           },
         ]
       }
+      suppliers: {
+        Row: {
+          address: string
+          contact_person: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          contact_person: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          contact_person?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tire_positions: {
         Row: {
           created_at: string

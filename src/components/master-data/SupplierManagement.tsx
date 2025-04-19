@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +18,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Supplier } from "@/types/models";
+import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import type { Supplier } from "@/types/models";
+import ExcelImport from "./ExcelImport";
+import { utils, writeFile } from 'xlsx';
 
 const SupplierManagement = () => {
-  // ตัวอย่างข้อมูลผู้จำหน่าย
   const [suppliers, setSuppliers] = useState<Supplier[]>([
     {
       id: "1",
@@ -62,6 +62,26 @@ const SupplierManagement = () => {
     supplier.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleExcelImportSuccess = () => {
+    fetchSuppliers();
+  };
+
+  const handleExportToExcel = () => {
+    const exportData = suppliers.map(supplier => ({
+      'ชื่อบริษัท/ร้าน': supplier.name,
+      'ผู้ติดต่อ': supplier.contactPerson,
+      'เบอร์โทรศัพท์': supplier.phone,
+      'อีเมล': supplier.email,
+      'ที่อยู่': supplier.address,
+      'หมายเหตุ': supplier.notes
+    }));
+
+    const ws = utils.json_to_sheet(exportData);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Suppliers");
+    writeFile(wb, "suppliers.xlsx");
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -72,55 +92,62 @@ const SupplierManagement = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              เพิ่มผู้จำหน่ายใหม่
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[625px]">
-            <DialogHeader>
-              <DialogTitle>เพิ่มข้อมูลผู้จำหน่ายใหม่</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">ชื่อบริษัท/ร้าน</Label>
-                <Input id="name" placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-2">
+          <ExcelImport type="suppliers" onImportSuccess={handleExcelImportSuccess} />
+          <Button variant="outline" onClick={handleExportToExcel}>
+            <Download className="h-4 w-4 mr-2" />
+            ส่งออก Excel
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                เพิ่มผู้จำหน่ายใหม่
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[625px]">
+              <DialogHeader>
+                <DialogTitle>เพิ่มข้อมูลผู้จำหน่ายใหม่</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="contactPerson">ชื่อผู้ติดต่อ</Label>
-                  <Input id="contactPerson" placeholder="เช่น คุณสมชาย ใจดี" />
+                  <Label htmlFor="name">ชื่อบริษัท/ร้าน</Label>
+                  <Input id="name" placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactPerson">ชื่อผู้ติดต่อ</Label>
+                    <Input id="contactPerson" placeholder="เช่น คุณสมชาย ใจดี" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">เบอร์โทรศัพท์</Label>
+                    <Input id="phone" placeholder="เช่น 02-123-4567" />
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="phone">เบอร์โทรศัพท์</Label>
-                  <Input id="phone" placeholder="เช่น 02-123-4567" />
+                  <Label htmlFor="email">อีเมล</Label>
+                  <Input id="email" type="email" placeholder="เช่น contact@example.com" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="address">ที่อยู่</Label>
+                  <Input id="address" placeholder="เช่น 123 ถนนพระราม 4 คลองเตย กรุงเทพฯ 10110" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="notes">หมายเหตุ</Label>
+                  <Input id="notes" placeholder="รายละเอียดเพิ่มเติม..." />
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">อีเมล</Label>
-                <Input id="email" type="email" placeholder="เช่น contact@example.com" />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  ยกเลิก
+                </Button>
+                <Button onClick={() => setIsAddDialogOpen(false)}>
+                  บันทึก
+                </Button>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="address">ที่อยู่</Label>
-                <Input id="address" placeholder="เช่น 123 ถนนพระราม 4 คลองเตย กรุงเทพฯ 10110" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes">หมายเหตุ</Label>
-                <Input id="notes" placeholder="รายละเอียดเพิ่มเติม..." />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                ยกเลิก
-              </Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>
-                บันทึก
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
