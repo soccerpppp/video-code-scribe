@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Tire, Vehicle, TireWearCalculation } from "@/types/models";
+import { Tire, Vehicle, TireWearCalculation, TireWearAnalysisTypeUnified } from "@/types/models";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 
@@ -71,14 +71,14 @@ export const useTireWearData = () => {
         current_age_days: calc.current_age_days,
         tread_depth_mm: calc.tread_depth_mm,
         predicted_wear_percentage: calc.predicted_wear_percentage,
-        predicted_lifespan: calc.predicted_lifespan,
-        wear_formula: calc.wear_formula,
+        predicted_lifespan: calc.predicted_lifespan || undefined,
+        wear_formula: calc.wear_formula || undefined,
         status_code: calc.status_code as 'normal' | 'warning' | 'critical' | 'error' | undefined,
         tire_id: calc.tire_id,
         vehicle_id: calc.vehicle_id,
         analysis_method: calc.analysis_method,
         analysis_result: calc.analysis_result,
-        analysis_type: calc.analysis_type,
+        analysis_type: mapAnalysisType(calc.analysis_type),
         recommendation: calc.recommendation,
         notes: calc.notes || undefined,
         created_at: calc.created_at,
@@ -97,6 +97,26 @@ export const useTireWearData = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to map string analysis type to TireWearAnalysisTypeUnified
+  const mapAnalysisType = (type: string): TireWearAnalysisTypeUnified => {
+    switch(type) {
+      case 'predict_wear':
+        return 'predict_wear';
+      case 'cluster_analysis':
+        return 'cluster_analysis';
+      case 'time_series_prediction':
+        return 'time_series_prediction';
+      case 'standard_prediction':
+        return 'standard_prediction';
+      case 'statistical_regression':
+        return 'statistical_regression';
+      case 'position_based':
+        return 'position_based';
+      default:
+        return 'predict_wear'; // Default to a safe value
     }
   };
 
