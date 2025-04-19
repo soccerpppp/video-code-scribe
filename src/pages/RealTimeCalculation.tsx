@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -201,7 +200,7 @@ const RealTimeCalculation = () => {
       
       // If the insert was successful and we got back the inserted record
       if (data && data.length > 0) {
-        // Create a properly typed TireWearCalculation object
+        // Create a properly typed TireWearCalculation object that includes all required fields
         const calculationResult: TireWearCalculation = {
           id: data[0].id,
           tire_id: data[0].tire_id,
@@ -211,14 +210,14 @@ const RealTimeCalculation = () => {
           current_age_days: data[0].current_age_days,
           tread_depth_mm: data[0].tread_depth_mm,
           predicted_wear_percentage: data[0].predicted_wear_percentage,
-          predicted_lifespan: result.predictedLifespan,
-          wear_formula: result.wearFormula,
-          status_code: result.statusCode,
+          predicted_lifespan: data[0].predicted_lifespan || result.predictedLifespan, // use result as fallback
+          wear_formula: data[0].wear_formula || result.wearFormula, // use result as fallback
+          status_code: (data[0].status_code as any) || result.statusCode, // use result as fallback
           analysis_type: data[0].analysis_type as TireWearAnalysisTypeUnified,
           analysis_method: data[0].analysis_method,
           analysis_result: data[0].analysis_result,
           recommendation: data[0].recommendation,
-          notes: data[0].notes,
+          notes: data[0].notes || undefined,
           created_at: data[0].created_at,
           updated_at: data[0].updated_at
         };
