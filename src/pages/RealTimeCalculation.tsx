@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -172,7 +173,7 @@ const RealTimeCalculation = () => {
         analysisType: mappedAnalysisType
       });
 
-      // Prepare data for database insertion
+      // Prepare data for database insertion - INCLUDE ALL NEEDED FIELDS
       const dataToInsert = {
         tire_id: selectedTire,
         vehicle_id: selectedVehicle,
@@ -210,9 +211,9 @@ const RealTimeCalculation = () => {
           current_age_days: data[0].current_age_days,
           tread_depth_mm: data[0].tread_depth_mm,
           predicted_wear_percentage: data[0].predicted_wear_percentage,
-          predicted_lifespan: data[0].predicted_lifespan || result.predictedLifespan, // use result as fallback
-          wear_formula: data[0].wear_formula || result.wearFormula, // use result as fallback
-          status_code: (data[0].status_code as any) || result.statusCode, // use result as fallback
+          predicted_lifespan: data[0].predicted_lifespan,
+          wear_formula: data[0].wear_formula,
+          status_code: data[0].status_code as 'normal' | 'warning' | 'critical' | 'error' | undefined,
           analysis_type: data[0].analysis_type as TireWearAnalysisTypeUnified,
           analysis_method: data[0].analysis_method,
           analysis_result: data[0].analysis_result,
