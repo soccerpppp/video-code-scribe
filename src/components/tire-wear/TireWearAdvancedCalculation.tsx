@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -255,13 +256,16 @@ const TireWearAdvancedCalculation = () => {
       const result = calculateTireWear(calculationParams);
       
       // Make sure analysis_type is one of the allowed values in the database constraint
+      // Since analysisType is already type-checked to be one of the three valid values,
+      // we can use it directly as the validAnalysisType
       let validAnalysisType = analysisType;
-      const allowedTypes = ['predict_wear', 'cluster_analysis', 'time_series_prediction', 'standard_prediction', 'statistical_regression', 'position_based'];
       
-      if (!allowedTypes.includes(validAnalysisType)) {
-        console.warn(`Invalid analysis type: ${validAnalysisType}, using 'predict_wear' instead`);
-        validAnalysisType = 'predict_wear';
-      }
+      // For database compatibility, map the UI analysis types to database-compatible types if needed
+      const dbAnalysisType = 
+        analysisType === 'standard_prediction' ? 'standard_prediction' :
+        analysisType === 'statistical_regression' ? 'statistical_regression' :
+        analysisType === 'position_based' ? 'position_based' : 
+        'standard_prediction'; // Fallback to a valid type
       
       // บันทึกผลการคำนวณลงฐานข้อมูล
       const { error } = await supabase
@@ -274,7 +278,7 @@ const TireWearAdvancedCalculation = () => {
           current_age_days: result.currentAgeDays,
           tread_depth_mm: treadDepth,
           predicted_wear_percentage: result.wearRatePerDay * result.currentAgeDays * 100,
-          analysis_type: validAnalysisType,
+          analysis_type: dbAnalysisType,
           analysis_method: result.analysisMethod,
           analysis_result: result.analysisResult,
           recommendation: result.recommendation,
