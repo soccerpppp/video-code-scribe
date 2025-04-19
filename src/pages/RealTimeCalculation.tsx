@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -98,7 +97,7 @@ const RealTimeCalculation = () => {
         tirePositions: [] // We'll need to fetch this separately if needed
       })) || [];
 
-      // Transform the calculation history data
+      // Transform the calculation history data with proper type handling
       const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => {
         // Cast the analysis_type to our unified type to resolve the TypeScript error
         const analysisType = calc.analysis_type as TireWearAnalysisTypeUnified;
@@ -159,6 +158,9 @@ const RealTimeCalculation = () => {
         throw new Error("ไม่พบข้อมูลยาง");
       }
       
+      // Map the analysis type to make sure it's compatible with the calculator
+      const mappedAnalysisType = mapAnalysisTypeForCalculator(analysisType);
+      
       // Calculate tire wear
       const result = calculateTireWear({
         tireId: selectedTire,
@@ -167,7 +169,7 @@ const RealTimeCalculation = () => {
         treadDepth,
         purchaseDate: tire.purchaseDate,
         initialTreadDepth: tire.type === 'new' ? 15 : undefined, // Example default for new tire
-        analysisType
+        analysisType: mappedAnalysisType
       });
 
       // Create a TireWearCalculation object from the analysis result
@@ -179,7 +181,7 @@ const RealTimeCalculation = () => {
         current_mileage: currentMileage,
         current_age_days: result.currentAgeDays,
         tread_depth_mm: treadDepth,
-        predicted_wear_percentage: result.predictedWearPercentage || 0,
+        predicted_wear_percentage: result.predictedWearPercentage,
         predicted_lifespan: result.predictedLifespan,
         wear_formula: result.wearFormula,
         status_code: result.statusCode,
@@ -199,7 +201,7 @@ const RealTimeCalculation = () => {
           current_mileage: currentMileage,
           current_age_days: result.currentAgeDays,
           tread_depth_mm: treadDepth,
-          predicted_wear_percentage: result.predictedWearPercentage || 0,
+          predicted_wear_percentage: result.predictedWearPercentage,
           predicted_lifespan: result.predictedLifespan,
           wear_formula: result.wearFormula,
           status_code: result.statusCode,
@@ -239,6 +241,26 @@ const RealTimeCalculation = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+  
+  // Helper function to map analysis types to those that calculator supports
+  const mapAnalysisTypeForCalculator = (type: TireWearAnalysisTypeUnified): 'standard_prediction' | 'statistical_regression' | 'position_based' => {
+    switch(type) {
+      case 'predict_wear':
+        return 'standard_prediction';
+      case 'cluster_analysis':
+        return 'standard_prediction';
+      case 'time_series_prediction':
+        return 'statistical_regression';
+      case 'standard_prediction':
+        return 'standard_prediction';
+      case 'statistical_regression':
+        return 'statistical_regression';
+      case 'position_based':
+        return 'position_based';
+      default:
+        return 'standard_prediction';
     }
   };
 

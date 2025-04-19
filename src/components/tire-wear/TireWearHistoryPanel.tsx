@@ -53,7 +53,7 @@ export function TireWearHistoryPanel({ calculations, tires, vehicles, onRefresh 
             {calculations.map(calc => (
               <div key={calc.id} className="border rounded-md p-3 bg-gray-50">
                 <div className="flex items-center gap-2 mb-1">
-                  {getStatusIcon(calc.status_code || getStatusCodeFromResult(calc.analysis_result))}
+                  {getStatusIcon(getStatusCodeFromResult(calc.analysis_result))}
                   <span className="font-medium">
                     {new Date(calc.calculation_date).toLocaleDateString('th-TH')}
                   </span>

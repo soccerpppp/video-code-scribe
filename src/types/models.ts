@@ -96,7 +96,7 @@ export interface TireWearAnalysisResult {
   wearFormula: string;
   confidenceLevel: 'high' | 'medium' | 'low';
   // Add missing properties that are used in code
-  predictedWearPercentage?: number;
+  predictedWearPercentage: number;
   predictedLifespan?: number;
 }
 

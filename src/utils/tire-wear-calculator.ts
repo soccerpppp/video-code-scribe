@@ -13,7 +13,7 @@ interface TireWearCalculationParams {
   position?: string; // ตำแหน่งติดตั้งยาง
   measurementHistory?: {date: string, depth: number, mileage?: number}[];
   avgDailyDistance?: number; // ระยะทางเฉลี่ยต่อวัน (กม.)
-  analysisType?: 'standard_prediction' | 'statistical_regression' | 'position_based';
+  analysisType?: 'standard_prediction' | 'statistical_regression' | 'position_based' | 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
 }
 
 interface TireWearAnalysisResult {
@@ -41,10 +41,13 @@ interface TireWearAnalysisResult {
 }
 
 export const calculateTireWear = (params: TireWearCalculationParams): TireWearAnalysisResult => {
-  // Default to 'standard_prediction' if no analysis type is specified
+  // Default to 'standard_prediction' if no analysis type is specified or if an incompatible type is provided
   const analysisType = params.analysisType || 'standard_prediction';
+  
+  // Map legacy analysis types to new types if needed
+  const mappedAnalysisType = mapAnalysisType(analysisType);
 
-  switch (analysisType) {
+  switch (mappedAnalysisType) {
     case 'standard_prediction':
       return calculateStandardPrediction(params);
     case 'statistical_regression':
@@ -52,9 +55,30 @@ export const calculateTireWear = (params: TireWearCalculationParams): TireWearAn
     case 'position_based':
       return calculatePositionBased(params);
     default:
-      throw new Error('Invalid analysis type');
+      // Default to standard prediction for any unhandled type
+      return calculateStandardPrediction(params);
   }
 };
+
+// Helper function to map legacy analysis types to new types
+function mapAnalysisType(type: string): 'standard_prediction' | 'statistical_regression' | 'position_based' {
+  switch(type) {
+    case 'predict_wear':
+      return 'standard_prediction';
+    case 'cluster_analysis':
+      return 'standard_prediction';
+    case 'time_series_prediction':
+      return 'statistical_regression';
+    case 'standard_prediction':
+      return 'standard_prediction';
+    case 'statistical_regression':
+      return 'statistical_regression';
+    case 'position_based':
+      return 'position_based';
+    default:
+      return 'standard_prediction';
+  }
+}
 
 /**
  * คำนวณการสึกหรอแบบมาตรฐาน (ใช้ข้อมูลการวัดล่าสุดและการวัดก่อนหน้า)
@@ -150,7 +174,7 @@ function calculateStandardPrediction(params: TireWearCalculationParams): TireWea
   } else if (currentDepth <= SAFETY_LIMIT) {
     status = 'แนะนำให้เปลี่ยน (เพื่อความปลอดภัย)';
     statusCode = 'warning';
-    recommendation = 'ควรวางแผนเปลี่ยนยางในเร็วๆ นี้ เนื่องจากความลึกดอกยางต่ำกว่าเกณฑ์ความปลอดภัย';
+    recommendation = 'ควรวางแผนเปลี่ยนยางในเร็วๆ นี้ เนื่องจ��กความลึกดอกยางต่ำกว่าเกณฑ์ความปลอดภัย';
   } else {
     status = 'ใช้งานได้ปกติ';
     statusCode = 'normal';
@@ -196,6 +220,8 @@ function calculateStandardPrediction(params: TireWearCalculationParams): TireWea
   const analysisMethod = 'การวิเคราะห์แบบมาตรฐาน ใช้ข้อมูลการวัด' + (params.measurementHistory ? `${params.measurementHistory.length} ครั้ง` : '1 ครั้ง');
   
   // Calculate the predicted wear percentage based on the initial depth and current depth
+  const initialDepth = params.initialTreadDepth || DEFAULT_TREAD_DEPTH_NEW_TIRE;
+  const currentDepth = params.treadDepth;
   const predictedWearPercentage = ((initialDepth - currentDepth) / initialDepth) * 100;
   
   // Calculate the estimated remaining lifespan in kilometers
@@ -354,7 +380,9 @@ function calculateStatisticalRegression(params: TireWearCalculationParams): Tire
     analysisResult,
     recommendation,
     wearFormula,
-    confidenceLevel
+    confidenceLevel,
+    predictedWearPercentage: baseResult.predictedWearPercentage,
+    predictedLifespan: baseResult.predictedLifespan
   };
 }
 
@@ -439,6 +467,7 @@ function calculatePositionBased(params: TireWearCalculationParams): TireWearAnal
     analysisMethod,
     analysisResult,
     wearFormula,
+    predictedWearPercentage: baseResult.predictedWearPercentage
   };
 }
 
