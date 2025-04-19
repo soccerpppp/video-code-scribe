@@ -1,4 +1,3 @@
-
 // Constants for calculation
 const LEGAL_LIMIT = 1.6; // มม. - เกณฑ์บังคับเปลี่ยนตามกฎหมาย 
 const SAFETY_LIMIT = 3.0; // มม. - เกณฑ์แนะนำเพื่อความปลอดภัย
@@ -37,6 +36,8 @@ interface TireWearAnalysisResult {
   recommendation: string;
   wearFormula: string;
   confidenceLevel: 'high' | 'medium' | 'low';
+  predictedWearPercentage: number;
+  predictedLifespan?: number;
 }
 
 export const calculateTireWear = (params: TireWearCalculationParams): TireWearAnalysisResult => {
@@ -194,6 +195,15 @@ function calculateStandardPrediction(params: TireWearCalculationParams): TireWea
   const wearFormula = `อัตราการสึกหรอ: ${wearRatePerDay.toFixed(4)} มม./วัน, ${wearRatePer1000Km.toFixed(4)} มม./1000กม.`;
   const analysisMethod = 'การวิเคราะห์แบบมาตรฐาน ใช้ข้อมูลการวัด' + (params.measurementHistory ? `${params.measurementHistory.length} ครั้ง` : '1 ครั้ง');
   
+  // Calculate the predicted wear percentage based on the initial depth and current depth
+  const predictedWearPercentage = ((initialDepth - currentDepth) / initialDepth) * 100;
+  
+  // Calculate the estimated remaining lifespan in kilometers
+  let predictedLifespan: number | undefined;
+  if (wearRatePer1000Km > 0) {
+    predictedLifespan = (remainingDepthToLegal / wearRatePer1000Km) * 1000;
+  }
+  
   return {
     tireId: params.tireId,
     currentDepth,
@@ -213,7 +223,9 @@ function calculateStandardPrediction(params: TireWearCalculationParams): TireWea
     analysisResult,
     recommendation,
     wearFormula,
-    confidenceLevel
+    confidenceLevel,
+    predictedWearPercentage,
+    predictedLifespan
   };
 }
 
@@ -362,7 +374,7 @@ function calculatePositionBased(params: TireWearCalculationParams): TireWearAnal
     };
   }
   
-  // กำหนดค่าสัมประสิทธิ์การสึกหรอตามตำแหน่ง (ตัวอย่าง, ควรปรับตามข้อมูลจริง)
+  // กำหนดค่าสัมประสิทธิ์การสึกหรอตามตำแหน่ง (ตัวอย่าง, ค่าปรับตามข้อมูลจริง)
   const positionWearFactors: Record<string, number> = {
     // รถเล็ก
     'FL': 1.1,  // หน้าซ้าย - สึกเร็วกว่าปกติ

@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, AlertTriangle, Info } from "lucide-react";
-import { Tire, Vehicle } from "@/types/models";
+import { Tire, Vehicle, TireWearAnalysisTypeUnified } from "@/types/models";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TireWearCalculationFormProps {
@@ -21,8 +21,8 @@ interface TireWearCalculationFormProps {
   onMileageChange: (value: number) => void;
   onTreadDepthChange: (value: number) => void;
   onCalculate: () => void;
-  analysisType: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
-  onAnalysisTypeChange: (value: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction') => void;
+  analysisType: TireWearAnalysisTypeUnified;
+  onAnalysisTypeChange: (value: TireWearAnalysisTypeUnified) => void;
 }
 
 export function TireWearCalculationForm({
@@ -43,7 +43,7 @@ export function TireWearCalculationForm({
 }: TireWearCalculationFormProps) {
   const activeTires = tires.filter(tire => tire.status === 'active');
   
-  const getAnalysisTypeDescription = (type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction') => {
+  const getAnalysisTypeDescription = (type: TireWearAnalysisTypeUnified) => {
     switch (type) {
       case 'predict_wear':
         return 'คำนวณด้วยสูตร y = 0.00432X โดยใช้ข้อมูลจริง';
@@ -51,6 +51,14 @@ export function TireWearCalculationForm({
         return 'เปรียบเทียบกับกลุ่มยางที่มีลักษณะการใช้งานคล้ายกัน';
       case 'time_series_prediction':
         return 'วิเคราะห์แนวโน้มการสึกหรอตามระยะเวลา';
+      case 'standard_prediction':
+        return 'คำนวณโดยใช้ข้อมูลการวัดล่าสุดและการวัดก่อนหน้า';
+      case 'statistical_regression':
+        return 'วิเคราะห์ด้วยการถดถอยเชิงเส้น (Linear Regression) จากประวัติการวัด';
+      case 'position_based':
+        return 'คำนวณโดยพิจารณาตำแหน่งติดตั้งยางด้วย';
+      default:
+        return 'วิธีคำนวณมาตรฐาน';
     }
   };
 
@@ -164,6 +172,24 @@ export function TireWearCalculationForm({
                   <div className="flex flex-col">
                     <span>การทำนายการสึกหรอ</span>
                     <span className="text-xs text-gray-500">{getAnalysisTypeDescription('predict_wear')}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="standard_prediction">
+                  <div className="flex flex-col">
+                    <span>การทำนายแบบมาตรฐาน</span>
+                    <span className="text-xs text-gray-500">{getAnalysisTypeDescription('standard_prediction')}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="statistical_regression">
+                  <div className="flex flex-col">
+                    <span>การถดถอยเชิงสถิติ</span>
+                    <span className="text-xs text-gray-500">{getAnalysisTypeDescription('statistical_regression')}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="position_based">
+                  <div className="flex flex-col">
+                    <span>การวิเคราะห์ตามตำแหน่ง</span>
+                    <span className="text-xs text-gray-500">{getAnalysisTypeDescription('position_based')}</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="cluster_analysis">

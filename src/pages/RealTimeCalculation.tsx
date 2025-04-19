@@ -15,7 +15,7 @@ import { TireWearHistoryPanel } from "@/components/tire-wear/TireWearHistoryPane
 import { TireWearResultDialog } from "@/components/tire-wear/TireWearResultDialog";
 import TireWearAdvancedCalculation from "@/components/tire-wear/TireWearAdvancedCalculation";
 import { TireWearExcelImporter } from "@/components/tire-wear/TireWearExcelImporter";
-import { Tire, Vehicle, TireWearCalculation } from "@/types/models";
+import { Tire, Vehicle, TireWearCalculation, TireWearAnalysisTypeUnified } from "@/types/models";
 import { calculateTireWear } from "@/utils/tire-wear-calculator";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,7 +33,7 @@ const RealTimeCalculation = () => {
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const [currentMileage, setCurrentMileage] = useState(0);
   const [treadDepth, setTreadDepth] = useState(0);
-  const [analysisType, setAnalysisType] = useState<'standard_prediction' | 'statistical_regression' | 'position_based'>('standard_prediction');
+  const [analysisType, setAnalysisType] = useState<TireWearAnalysisTypeUnified>('standard_prediction');
   const [currentResult, setCurrentResult] = useState<TireWearCalculation | null>(null);
 
   useEffect(() => {
@@ -99,26 +99,31 @@ const RealTimeCalculation = () => {
       })) || [];
 
       // Transform the calculation history data
-      const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => ({
-        id: calc.id,
-        calculation_date: calc.calculation_date,
-        current_mileage: calc.current_mileage,
-        current_age_days: calc.current_age_days,
-        tread_depth_mm: calc.tread_depth_mm,
-        predicted_wear_percentage: calc.predicted_wear_percentage,
-        predicted_lifespan: calc.predicted_lifespan,
-        wear_formula: calc.wear_formula,
-        status_code: calc.status_code as 'normal' | 'warning' | 'critical' | 'error',
-        tire_id: calc.tire_id,
-        vehicle_id: calc.vehicle_id,
-        analysis_method: calc.analysis_method,
-        analysis_result: calc.analysis_result,
-        recommendation: calc.recommendation,
-        notes: calc.notes,
-        created_at: calc.created_at,
-        updated_at: calc.updated_at,
-        analysis_type: (calc.analysis_type as 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' | 'standard_prediction' | 'statistical_regression' | 'position_based') || 'standard_prediction'
-      })) || [];
+      const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => {
+        // Cast the analysis_type to our unified type to resolve the TypeScript error
+        const analysisType = calc.analysis_type as TireWearAnalysisTypeUnified;
+        
+        return {
+          id: calc.id,
+          calculation_date: calc.calculation_date,
+          current_mileage: calc.current_mileage,
+          current_age_days: calc.current_age_days,
+          tread_depth_mm: calc.tread_depth_mm,
+          predicted_wear_percentage: calc.predicted_wear_percentage,
+          predicted_lifespan: calc.predicted_lifespan || undefined,
+          wear_formula: calc.wear_formula || undefined,
+          status_code: calc.status_code as 'normal' | 'warning' | 'critical' | 'error' | undefined,
+          tire_id: calc.tire_id,
+          vehicle_id: calc.vehicle_id,
+          analysis_method: calc.analysis_method,
+          analysis_result: calc.analysis_result,
+          recommendation: calc.recommendation,
+          notes: calc.notes,
+          created_at: calc.created_at,
+          updated_at: calc.updated_at,
+          analysis_type: analysisType
+        };
+      }) || [];
       
       setTires(formattedTires);
       setVehicles(formattedVehicles);

@@ -11,7 +11,7 @@ interface TireWearHistoryPanelProps {
   onRefresh: () => Promise<void>;
 }
 
-export function TireWearHistoryPanel({ calculations, tires, vehicles }: TireWearHistoryPanelProps) {
+export function TireWearHistoryPanel({ calculations, tires, vehicles, onRefresh }: TireWearHistoryPanelProps) {
   const getStatusIcon = (status?: 'normal' | 'warning' | 'critical' | 'error') => {
     switch (status) {
       case 'normal':
@@ -48,7 +48,7 @@ export function TireWearHistoryPanel({ calculations, tires, vehicles }: TireWear
         <CardTitle className="text-lg">ประวัติการคำนวณล่าสุด</CardTitle>
       </CardHeader>
       <CardContent className="max-h-80 overflow-y-auto">
-        {calculations.length > 0 ? (
+        {calculations && calculations.length > 0 ? (
           <div className="space-y-4">
             {calculations.map(calc => (
               <div key={calc.id} className="border rounded-md p-3 bg-gray-50">

@@ -71,6 +71,9 @@ export interface ActivityLog {
   newPosition?: string; // For tire rotation activities
 }
 
+// Unified analysis types to solve the type conflicts
+export type TireWearAnalysisTypeUnified = 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' | 'standard_prediction' | 'statistical_regression' | 'position_based';
+
 // โมเดลสำหรับผลลัพธ์การวิเคราะห์การสึกหรอของยาง
 export interface TireWearAnalysisResult {
   tireId: string;
@@ -116,5 +119,5 @@ export interface TireWearCalculation {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  analysis_type: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' | 'standard_prediction' | 'statistical_regression' | 'position_based';
+  analysis_type: TireWearAnalysisTypeUnified;
 }
