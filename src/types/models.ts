@@ -108,9 +108,9 @@ export interface TireWearCalculation {
   current_age_days: number;
   tread_depth_mm: number;
   predicted_wear_percentage: number;
-  predicted_lifespan?: number;
-  wear_formula?: string;
-  status_code?: 'normal' | 'warning' | 'critical' | 'error';
+  predicted_lifespan?: number; // Made optional as it's calculated, not from DB
+  wear_formula?: string; // Made optional as it's calculated, not from DB
+  status_code?: 'normal' | 'warning' | 'critical' | 'error'; // Made optional as it's calculated, not from DB
   tire_id: string;
   vehicle_id: string;
   analysis_method: string;
