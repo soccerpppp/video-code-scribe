@@ -173,9 +173,8 @@ const RealTimeCalculation = () => {
         analysisType: mappedAnalysisType
       });
 
-      // Create a TireWearCalculation object from the analysis result
-      const calculationResult: TireWearCalculation = {
-        id: '', // Will be set by the database
+      // Prepare data for database insertion
+      const dataToInsert = {
         tire_id: selectedTire,
         vehicle_id: selectedVehicle,
         calculation_date: new Date().toISOString(),
@@ -195,31 +194,34 @@ const RealTimeCalculation = () => {
       // Save calculation to database
       const { data, error } = await supabase
         .from('tire_wear_calculations')
-        .insert({
-          tire_id: selectedTire,
-          vehicle_id: selectedVehicle,
-          calculation_date: new Date().toISOString(),
-          current_mileage: currentMileage,
-          current_age_days: result.currentAgeDays,
-          tread_depth_mm: treadDepth,
-          predicted_wear_percentage: result.predictedWearPercentage,
-          predicted_lifespan: result.predictedLifespan,
-          wear_formula: result.wearFormula,
-          status_code: result.statusCode,
-          analysis_type: analysisType,
-          analysis_method: result.analysisMethod,
-          analysis_result: result.analysisResult,
-          recommendation: result.recommendation
-        })
+        .insert(dataToInsert)
         .select();
       
       if (error) throw error;
       
       // If the insert was successful and we got back the inserted record
       if (data && data.length > 0) {
-        // Update the currentResult with the database record
-        const insertedRecord = data[0];
-        calculationResult.id = insertedRecord.id;
+        // Create a properly typed TireWearCalculation object
+        const calculationResult: TireWearCalculation = {
+          id: data[0].id,
+          tire_id: data[0].tire_id,
+          vehicle_id: data[0].vehicle_id,
+          calculation_date: data[0].calculation_date,
+          current_mileage: data[0].current_mileage,
+          current_age_days: data[0].current_age_days,
+          tread_depth_mm: data[0].tread_depth_mm,
+          predicted_wear_percentage: data[0].predicted_wear_percentage,
+          predicted_lifespan: result.predictedLifespan,
+          wear_formula: result.wearFormula,
+          status_code: result.statusCode,
+          analysis_type: data[0].analysis_type as TireWearAnalysisTypeUnified,
+          analysis_method: data[0].analysis_method,
+          analysis_result: data[0].analysis_result,
+          recommendation: data[0].recommendation,
+          notes: data[0].notes,
+          created_at: data[0].created_at,
+          updated_at: data[0].updated_at
+        };
         
         setCurrentResult(calculationResult);
         setShowResultDialog(true);
@@ -248,7 +250,7 @@ const RealTimeCalculation = () => {
   // Helper function to map analysis types to those that calculator supports
   const mapAnalysisTypeForCalculator = (type: TireWearAnalysisTypeUnified): 'standard_prediction' | 'statistical_regression' | 'position_based' | 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' => {
     // Since we've updated the tire-wear-calculator.ts to accept all types, we can just return the type
-    return type;
+    return type as any;
   };
 
   if (isLoading) {
