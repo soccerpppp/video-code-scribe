@@ -82,6 +82,9 @@ export const useTireWearData = () => {
           statusCode = 'normal';
         }
         
+        // Make sure analysis_type is valid for the database constraint
+        const validAnalysisType = mapAnalysisType(calc.analysis_type);
+        
         return {
           id: calc.id,
           calculation_date: calc.calculation_date,
@@ -96,7 +99,7 @@ export const useTireWearData = () => {
           vehicle_id: calc.vehicle_id,
           analysis_method: calc.analysis_method,
           analysis_result: calc.analysis_result,
-          analysis_type: mapAnalysisType(calc.analysis_type),
+          analysis_type: validAnalysisType,
           recommendation: calc.recommendation,
           notes: calc.notes || undefined,
           created_at: calc.created_at,
@@ -121,22 +124,24 @@ export const useTireWearData = () => {
 
   // Helper function to map string analysis type to TireWearAnalysisTypeUnified
   const mapAnalysisType = (type: string): TireWearAnalysisTypeUnified => {
-    switch(type) {
-      case 'predict_wear':
-        return 'predict_wear';
-      case 'cluster_analysis':
-        return 'cluster_analysis';
-      case 'time_series_prediction':
-        return 'time_series_prediction';
-      case 'standard_prediction':
-        return 'standard_prediction';
-      case 'statistical_regression':
-        return 'statistical_regression';
-      case 'position_based':
-        return 'position_based';
-      default:
-        return 'predict_wear'; // Default to a safe value
+    // List of valid analysis types that match the database constraint
+    const validTypes: TireWearAnalysisTypeUnified[] = [
+      'predict_wear',
+      'cluster_analysis',
+      'time_series_prediction',
+      'standard_prediction', 
+      'statistical_regression',
+      'position_based'
+    ];
+    
+    // Check if the type is already valid
+    if (validTypes.includes(type as TireWearAnalysisTypeUnified)) {
+      return type as TireWearAnalysisTypeUnified;
     }
+    
+    // If not valid, return a default safe value
+    console.warn(`Invalid analysis type: ${type}, defaulting to 'predict_wear'`);
+    return 'predict_wear';
   };
 
   useEffect(() => {

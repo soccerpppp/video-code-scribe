@@ -91,6 +91,6 @@ const RealTimeCalculation = () => {
       />
     </div>
   );
-};
+}
 
 export default RealTimeCalculation;
