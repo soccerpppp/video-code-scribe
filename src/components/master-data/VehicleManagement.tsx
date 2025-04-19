@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,47 +23,15 @@ import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import { Vehicle } from "@/types/models";
 import ExcelImport from "./ExcelImport";
 import { utils, writeFile } from 'xlsx';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const VehicleManagement = () => {
-  // ตัวอย่างข้อมูลรถ
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    {
-      id: "1",
-      registrationNumber: "1กก1234",
-      type: "รถบรรทุก 6 ล้อ",
-      brand: "Isuzu",
-      model: "FRR90",
-      wheelPositions: 6,
-      currentMileage: 150000,
-      tirePositions: [],
-      notes: "รถใหม่"
-    },
-    {
-      id: "2",
-      registrationNumber: "2กก5678",
-      type: "รถพ่วง",
-      brand: "Hino",
-      model: "FM1AK1A",
-      wheelPositions: 10,
-      currentMileage: 280000,
-      tirePositions: [],
-      notes: "รถใช้งานมา 3 ปี"
-    },
-    {
-      id: "3",
-      registrationNumber: "3กก9012",
-      type: "รถตู้",
-      brand: "Toyota",
-      model: "Hiace",
-      wheelPositions: 4,
-      currentMileage: 80000,
-      tirePositions: [],
-      notes: "รถสำหรับขนส่งพนักงาน"
-    },
-  ]);
-
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   const filteredVehicles = vehicles.filter(vehicle => 
     vehicle.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,8 +39,51 @@ const VehicleManagement = () => {
     vehicle.model.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Function to fetch vehicles from Supabase
+  const fetchVehicles = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Transform snake_case to camelCase
+        const formattedData = data.map(vehicle => ({
+          id: vehicle.id,
+          registrationNumber: vehicle.registration_number,
+          type: vehicle.type,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          wheelPositions: vehicle.wheel_positions,
+          currentMileage: vehicle.current_mileage,
+          tirePositions: [],
+          notes: vehicle.notes
+        }));
+        
+        setVehicles(formattedData);
+      }
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถโหลดข้อมูลรถได้",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
+
   const handleExcelImportSuccess = () => {
-    // Refresh the vehicles list
     fetchVehicles();
   };
 
@@ -171,41 +183,51 @@ const VehicleManagement = () => {
           <CardTitle>รายการรถทั้งหมด</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ทะเบียนรถ</TableHead>
-                <TableHead>ประเภทรถ</TableHead>
-                <TableHead>ยี่ห้อ</TableHead>
-                <TableHead>รุ่น</TableHead>
-                <TableHead>จำนวนล้อ</TableHead>
-                <TableHead>ระยะทาง (กม.)</TableHead>
-                <TableHead className="text-right">การดำเนินการ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredVehicles.map((vehicle) => (
-                <TableRow key={vehicle.id}>
-                  <TableCell className="font-medium">{vehicle.registrationNumber}</TableCell>
-                  <TableCell>{vehicle.type}</TableCell>
-                  <TableCell>{vehicle.brand}</TableCell>
-                  <TableCell>{vehicle.model}</TableCell>
-                  <TableCell>{vehicle.wheelPositions}</TableCell>
-                  <TableCell>{vehicle.currentMileage}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="icon">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center py-8">กำลังโหลดข้อมูล...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ทะเบียนรถ</TableHead>
+                  <TableHead>ประเภทรถ</TableHead>
+                  <TableHead>ยี่ห้อ</TableHead>
+                  <TableHead>รุ่น</TableHead>
+                  <TableHead>จำนวนล้อ</TableHead>
+                  <TableHead>ระยะทาง (กม.)</TableHead>
+                  <TableHead className="text-right">การดำเนินการ</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredVehicles.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-4">ไม่พบข้อมูล</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredVehicles.map((vehicle) => (
+                    <TableRow key={vehicle.id}>
+                      <TableCell className="font-medium">{vehicle.registrationNumber}</TableCell>
+                      <TableCell>{vehicle.type}</TableCell>
+                      <TableCell>{vehicle.brand}</TableCell>
+                      <TableCell>{vehicle.model}</TableCell>
+                      <TableCell>{vehicle.wheelPositions}</TableCell>
+                      <TableCell>{vehicle.currentMileage}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="icon">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
