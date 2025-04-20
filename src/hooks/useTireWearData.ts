@@ -58,10 +58,10 @@ export const useTireWearData = () => {
         model: vehicle.model,
         type: vehicle.type,
         wheelPositions: vehicle.wheel_positions,
-        initialMileage: vehicle.initial_mileage,
+        initialMileage: vehicle.initial_mileage || 0,
         currentMileage: vehicle.current_mileage,
         measurementStartDate: vehicle.measurement_start_date,
-        dailyMileageIncrement: vehicle.daily_mileage_increment,
+        dailyMileageIncrement: vehicle.daily_mileage_increment || 0,
         notes: vehicle.notes,
         tirePositions: []
       })) || [];

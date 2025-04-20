@@ -311,7 +311,10 @@ export type Database = {
           brand: string
           created_at: string
           current_mileage: number
+          daily_mileage_increment: number | null
           id: string
+          initial_mileage: number | null
+          measurement_start_date: string | null
           model: string
           notes: string | null
           registration_number: string
@@ -323,7 +326,10 @@ export type Database = {
           brand: string
           created_at?: string
           current_mileage?: number
+          daily_mileage_increment?: number | null
           id?: string
+          initial_mileage?: number | null
+          measurement_start_date?: string | null
           model: string
           notes?: string | null
           registration_number: string
@@ -335,7 +341,10 @@ export type Database = {
           brand?: string
           created_at?: string
           current_mileage?: number
+          daily_mileage_increment?: number | null
           id?: string
+          initial_mileage?: number | null
+          measurement_start_date?: string | null
           model?: string
           notes?: string | null
           registration_number?: string
