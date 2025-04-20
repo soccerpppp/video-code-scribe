@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,267 +27,60 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, FileText, Loader2 } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { ActivityLog } from "@/types/models";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-
-interface TireChangeLog {
-  id: string;
-  date: string;
-  vehicleId: string;
-  tireId: string;
-  newTireId: string | null;
-  mileage: number;
-  cost: number;
-  description: string;
-  performedBy: string;
-  notes: string;
-}
-
-interface Vehicle {
-  id: string;
-  registration_number: string;
-  brand: string;
-  model: string;
-}
-
-interface Tire {
-  id: string;
-  serial_number: string;
-  brand: string;
-  size: string;
-  type: string;
-  status: string;
-  vehicle_id?: string | null;
-}
-
-interface VehicleDisplay {
-  id: string;
-  name: string;
-}
-
-interface TireDisplay {
-  id: string;
-  name: string;
-}
 
 const TireChange = () => {
-  const [changes, setChanges] = useState<TireChangeLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // ตัวอย่างข้อมูลบันทึกการเปลี่ยนยาง
+  const [changes, setChanges] = useState<ActivityLog[]>([
+    {
+      id: "1",
+      date: "2023-06-01",
+      activityType: "change",
+      tireId: "T003",
+      vehicleId: "1",
+      mileage: 30000,
+      cost: 9200,
+      description: "เปลี่ยนยางหน้าซ้ายเนื่องจากดอกยางสึกหรอ",
+      performedBy: "ช่างสมศักดิ์",
+      newTireId: "T020",
+      notes: "เปลี่ยนเป็นยางใหม่"
+    },
+    {
+      id: "2",
+      date: "2023-06-05",
+      activityType: "change",
+      tireId: "T012",
+      vehicleId: "2",
+      mileage: 32000,
+      cost: 8500,
+      description: "เปลี่ยนยางเนื่องจากยางรั่วซึมตลอดเวลา",
+      performedBy: "ช่างสมชาย",
+      newTireId: "T021",
+      notes: "เปลี่ยนเป็นยางหล่อดอก"
+    },
+  ]);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
-  const [vehicles, setVehicles] = useState<VehicleDisplay[]>([]);
-  const [tires, setTires] = useState<TireDisplay[]>([]);
-  const [newTires, setNewTires] = useState<TireDisplay[]>([]);
+  // ตัวอย่างข้อมูลรถและยางสำหรับ dropdown
+  const vehicles = [
+    { id: "1", name: "70-8001 (HINO)" },
+    { id: "2", name: "70-7520 (ISUZU)" },
+  ];
   
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    vehicleId: "",
-    oldTireId: "",
-    newTireId: "",
-    mileage: 0,
-    cost: 0,
-    description: "",
-    performedBy: "",
-    notes: ""
-  });
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch change logs
-      const { data: changeLogs, error: changesError } = await supabase
-        .from('activity_logs')
-        .select('*')
-        .eq('activity_type', 'change')
-        .order('date', { ascending: false });
-      
-      if (changesError) throw changesError;
-      
-      // Fetch vehicles
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('id, registration_number, brand, model')
-        .order('registration_number', { ascending: true });
-      
-      if (vehiclesError) throw vehiclesError;
-      
-      // Fetch all tires
-      const { data: tiresData, error: tiresError } = await supabase
-        .from('tires')
-        .select('id, serial_number, brand, size, type, status, vehicle_id')
-        .order('serial_number', { ascending: true });
-      
-      if (tiresError) throw tiresError;
-      
-      // Transform the fetched data
-      const formattedVehicles: VehicleDisplay[] = (vehiclesData || []).map((vehicle: Vehicle) => ({
-        id: vehicle.id,
-        name: `${vehicle.registration_number} (${vehicle.brand})`
-      }));
-      
-      const formattedTires: TireDisplay[] = (tiresData || []).map((tire: Tire) => ({
-        id: tire.id,
-        name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.status}`
-      }));
-
-      // Filter tires for new ones (active, not installed)
-      const formattedNewTires: TireDisplay[] = (tiresData || [])
-        .filter((tire: Tire) => tire.status === 'active' && !tire.vehicle_id)
-        .map((tire: Tire) => ({
-          id: tire.id,
-          name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.type === 'new' ? 'ยางใหม่' : 'ยางหล่อดอก'}`
-        }));
-      
-      // Format change logs to the component's format
-      const formattedChanges: TireChangeLog[] = (changeLogs || []).map((log: any) => ({
-        id: log.id,
-        date: log.date,
-        vehicleId: log.vehicle_id || '',
-        tireId: log.tire_id || '',
-        newTireId: log.new_tire_id,
-        mileage: log.mileage || 0,
-        cost: log.cost || 0,
-        description: log.description || '',
-        performedBy: log.performed_by || '',
-        notes: log.notes || ''
-      }));
-      
-      setChanges(formattedChanges);
-      setVehicles(formattedVehicles);
-      setTires(formattedTires);
-      setNewTires(formattedNewTires);
-      
-    } catch (error: any) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลได้",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: ['mileage', 'cost'].includes(name) ? Number(value) : value
-    }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.vehicleId || !formData.oldTireId || !formData.newTireId) {
-      toast({
-        title: "ข้อมูลไม่ครบถ้วน",
-        description: "กรุณาเลือกรถและยาง",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      // Create activity log for tire change
-      const activityLog = {
-        date: formData.date,
-        activity_type: 'change',
-        tire_id: formData.oldTireId,
-        vehicle_id: formData.vehicleId,
-        mileage: formData.mileage,
-        cost: formData.cost,
-        description: formData.description,
-        performed_by: formData.performedBy,
-        new_tire_id: formData.newTireId,
-        notes: formData.notes
-      };
-      
-      const { error: logError } = await supabase
-        .from('activity_logs')
-        .insert(activityLog);
-        
-      if (logError) throw logError;
-      
-      // Update old tire status
-      const { error: oldTireError } = await supabase
-        .from('tires')
-        .update({ 
-          status: 'maintenance', 
-          vehicle_id: null,
-          position: null
-        })
-        .eq('id', formData.oldTireId);
-        
-      if (oldTireError) throw oldTireError;
-      
-      // Update new tire status and link to vehicle
-      const { error: newTireError } = await supabase
-        .from('tires')
-        .update({ 
-          status: 'active', 
-          vehicle_id: formData.vehicleId
-        })
-        .eq('id', formData.newTireId);
-        
-      if (newTireError) throw newTireError;
-      
-      toast({
-        title: "บันทึกสำเร็จ",
-        description: "บันทึกการเปลี่ยนยางเรียบร้อยแล้ว"
-      });
-      
-      // Reset form and refresh data
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        vehicleId: "",
-        oldTireId: "",
-        newTireId: "",
-        mileage: 0,
-        cost: 0,
-        description: "",
-        performedBy: "",
-        notes: ""
-      });
-      
-      setIsAddDialogOpen(false);
-      fetchData();
-      
-    } catch (error: any) {
-      console.error("Error saving tire change:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: error.message || "ไม่สามารถบันทึกข้อมูลได้",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getTireName = (tireId: string) => {
-    const tire = tires.find(t => t.id === tireId);
-    return tire ? tire.name.split(' ')[0] : '-';
-  };
-
-  const getVehicleName = (vehicleId: string) => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? vehicle.name.split(' ')[0] : '-';
-  };
+  const tires = [
+    { id: "T001", name: "BDG2021060001 (Bridgestone 11R22.5)" },
+    { id: "T002", name: "BDG2021060002 (Bridgestone 11R22.5)" },
+    { id: "T003", name: "BDG2021060003 (Bridgestone 11R22.5)" },
+    { id: "T011", name: "MCH2022010015 (Michelin 11R22.5)" },
+    { id: "T020", name: "OTH2022050030 (Otani 11R22.5)" },
+  ];
+  
+  const newTires = [
+    { id: "T020", name: "OTH2022050030 (Otani 11R22.5) - ใหม่" },
+    { id: "T021", name: "OTH2022050031 (Otani 11R22.5) - หล่อดอก" },
+  ];
 
   return (
     <div>
@@ -308,20 +101,11 @@ const TireChange = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="date">วันที่เปลี่ยน</Label>
-                  <Input 
-                    id="date" 
-                    name="date" 
-                    type="date" 
-                    value={formData.date}
-                    onChange={handleChange}
-                  />
+                  <Input id="date" type="date" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="vehicle">รถ</Label>
-                  <Select 
-                    value={formData.vehicleId} 
-                    onValueChange={(value) => handleSelectChange("vehicleId", value)}
-                  >
+                  <Select>
                     <SelectTrigger id="vehicle">
                       <SelectValue placeholder="เลือกรถ" />
                     </SelectTrigger>
@@ -338,31 +122,22 @@ const TireChange = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="oldTire">ยางเก่าที่ถอดออก</Label>
-                  <Select 
-                    value={formData.oldTireId} 
-                    onValueChange={(value) => handleSelectChange("oldTireId", value)}
-                  >
+                  <Select>
                     <SelectTrigger id="oldTire">
                       <SelectValue placeholder="เลือกยางเก่า" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tires
-                        .filter(tire => tire.name.includes('active'))
-                        .map(tire => (
-                          <SelectItem key={tire.id} value={tire.id}>
-                            {tire.name}
-                          </SelectItem>
-                        ))
-                      }
+                      {tires.map(tire => (
+                        <SelectItem key={tire.id} value={tire.id}>
+                          {tire.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="newTire">ยางใหม่ที่ติดตั้ง</Label>
-                  <Select 
-                    value={formData.newTireId} 
-                    onValueChange={(value) => handleSelectChange("newTireId", value)}
-                  >
+                  <Select>
                     <SelectTrigger id="newTire">
                       <SelectValue placeholder="เลือกยางใหม่" />
                     </SelectTrigger>
@@ -379,71 +154,32 @@ const TireChange = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="mileage">เลขไมล์ (กม.)</Label>
-                  <Input 
-                    id="mileage" 
-                    name="mileage" 
-                    type="number" 
-                    placeholder="เช่น 30000" 
-                    value={formData.mileage || ""}
-                    onChange={handleChange}
-                  />
+                  <Input id="mileage" type="number" placeholder="เช่น 30000" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="cost">ค่าใช้จ่าย (บาท)</Label>
-                  <Input 
-                    id="cost" 
-                    name="cost" 
-                    type="number" 
-                    placeholder="เช่น 8500" 
-                    value={formData.cost || ""}
-                    onChange={handleChange}
-                  />
+                  <Input id="cost" type="number" placeholder="เช่น 8500" />
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="performedBy">ผู้ดำเนินการ</Label>
-                <Input 
-                  id="performedBy" 
-                  name="performedBy" 
-                  placeholder="เช่น ช่างสมศักดิ์" 
-                  value={formData.performedBy}
-                  onChange={handleChange}
-                />
+                <Input id="performedBy" placeholder="เช่น ช่างสมศักดิ์" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="description">สาเหตุการเปลี่ยน</Label>
-                <Textarea 
-                  id="description" 
-                  name="description" 
-                  placeholder="บรรยายสาเหตุการเปลี่ยนยาง..." 
-                  value={formData.description}
-                  onChange={handleChange}
-                />
+                <Textarea id="description" placeholder="บรรยายสาเหตุการเปลี่ยนยาง..." />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="notes">หมายเหตุ</Label>
-                <Input 
-                  id="notes" 
-                  name="notes" 
-                  placeholder="รายละเอียดเพิ่มเติม..." 
-                  value={formData.notes}
-                  onChange={handleChange}
-                />
+                <Input id="notes" placeholder="รายละเอียดเพิ่มเติม..." />
               </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 ยกเลิก
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    กำลังบันทึก...
-                  </>
-                ) : (
-                  'บันทึก'
-                )}
+              <Button onClick={() => setIsAddDialogOpen(false)}>
+                บันทึก
               </Button>
             </div>
           </DialogContent>
@@ -455,54 +191,41 @@ const TireChange = () => {
           <CardTitle>ประวัติการเปลี่ยนยาง</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>รถ</TableHead>
-                  <TableHead>ยางเก่า / ยางใหม่</TableHead>
-                  <TableHead>เลขไมล์</TableHead>
-                  <TableHead>สาเหตุการเปลี่ยน</TableHead>
-                  <TableHead>ค่าใช้จ่าย</TableHead>
-                  <TableHead className="text-right">รายละเอียด</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>วันที่</TableHead>
+                <TableHead>รถ</TableHead>
+                <TableHead>ยางเก่า / ยางใหม่</TableHead>
+                <TableHead>เลขไมล์</TableHead>
+                <TableHead>สาเหตุการเปลี่ยน</TableHead>
+                <TableHead>ค่าใช้จ่าย</TableHead>
+                <TableHead className="text-right">รายละเอียด</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {changes.map((change) => (
+                <TableRow key={change.id}>
+                  <TableCell>{change.date}</TableCell>
+                  <TableCell>
+                    {vehicles.find(v => v.id === change.vehicleId)?.name.split(" ")[0]}
+                  </TableCell>
+                  <TableCell>
+                    {tires.find(t => t.id === change.tireId)?.name.split(" ")[0]} / 
+                    {newTires.find(t => t.id === change.newTireId)?.name.split(" ")[0]}
+                  </TableCell>
+                  <TableCell>{change.mileage.toLocaleString()} กม.</TableCell>
+                  <TableCell>{change.description}</TableCell>
+                  <TableCell>{change.cost.toLocaleString()} บาท</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon">
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {changes.length > 0 ? (
-                  changes.map((change) => (
-                    <TableRow key={change.id}>
-                      <TableCell>{new Date(change.date).toLocaleDateString('th-TH')}</TableCell>
-                      <TableCell>
-                        {getVehicleName(change.vehicleId)}
-                      </TableCell>
-                      <TableCell>
-                        {getTireName(change.tireId)} / {change.newTireId && getTireName(change.newTireId)}
-                      </TableCell>
-                      <TableCell>{change.mileage?.toLocaleString()} กม.</TableCell>
-                      <TableCell>{change.description}</TableCell>
-                      <TableCell>{change.cost?.toLocaleString()} บาท</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon">
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center">
-                      ไม่พบข้อมูลการเปลี่ยนยาง
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

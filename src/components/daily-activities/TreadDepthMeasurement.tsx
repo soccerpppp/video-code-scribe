@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,204 +26,70 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, FileText, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, FileText, AlertTriangle } from "lucide-react";
 import { ActivityLog } from "@/types/models";
-import { supabase, snakeToCamel } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
 
 const TreadDepthMeasurement = () => {
-  const [measurements, setMeasurements] = useState<ActivityLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // ตัวอย่างข้อมูลบันทึกการวัดความลึกดอกยาง
+  const [measurements, setMeasurements] = useState<ActivityLog[]>([
+    {
+      id: "1",
+      date: "2023-06-10",
+      activityType: "measure",
+      tireId: "T001",
+      vehicleId: "1",
+      mileage: 35000,
+      cost: 0,
+      description: "วัดความลึกดอกยางตามระยะเวลา",
+      performedBy: "นายสมบัติ",
+      measurementValue: 8.5, // ความลึกดอกยาง (มม.)
+      notes: ""
+    },
+    {
+      id: "2",
+      date: "2023-06-10",
+      activityType: "measure",
+      tireId: "T002",
+      vehicleId: "1",
+      mileage: 35000,
+      cost: 0,
+      description: "วัดความลึกดอกยางตามระยะเวลา",
+      performedBy: "นายสมบัติ",
+      measurementValue: 4.2, // ความลึกดอกยาง (มม.) - ต่ำกว่าเกณฑ์
+      notes: "ความลึกดอกยางต่ำกว่าเกณฑ์ ควรเปลี่ยนเร็วๆ นี้"
+    },
+    {
+      id: "3",
+      date: "2023-06-15",
+      activityType: "measure",
+      tireId: "T011",
+      vehicleId: "2",
+      mileage: 32000,
+      cost: 0,
+      description: "วัดความลึกดอกยางตามระยะเวลา",
+      performedBy: "นายสมบัติ",
+      measurementValue: 9.8, // ความลึกดอกยาง (มม.)
+      notes: ""
+    },
+  ]);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
-  const [vehicles, setVehicles] = useState<{id: string; name: string}[]>([]);
-  const [tires, setTires] = useState<{id: string; name: string}[]>([]);
+  // ตัวอย่างข้อมูลรถและยางสำหรับ dropdown
+  const vehicles = [
+    { id: "1", name: "70-8001 (HINO)" },
+    { id: "2", name: "70-7520 (ISUZU)" },
+  ];
   
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    vehicleId: "",
-    tireId: "",
-    treadDepth: 0,
-    mileage: 0,
-    performedBy: "",
-    description: "วัดความลึกดอกยางตามระยะเวลา",
-    notes: ""
-  });
+  const tires = [
+    { id: "T001", name: "BDG2021060001 (Bridgestone 11R22.5)" },
+    { id: "T002", name: "BDG2021060002 (Bridgestone 11R22.5)" },
+    { id: "T003", name: "BDG2021060003 (Bridgestone 11R22.5)" },
+    { id: "T011", name: "MCH2022010015 (Michelin 11R22.5)" },
+  ];
 
   // เกณฑ์ความลึกดอกยางต่ำสุดที่ปลอดภัย (มม.)
   const minimumSafeTreadDepth = 5.0;
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch measurement logs
-      const { data: measurementLogs, error: measurementsError } = await supabase
-        .from('activity_logs')
-        .select('*')
-        .eq('activity_type', 'measure')
-        .order('date', { ascending: false });
-      
-      if (measurementsError) throw measurementsError;
-      
-      // Fetch vehicles
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('id, registration_number, brand, model')
-        .order('registration_number', { ascending: true });
-      
-      if (vehiclesError) throw vehiclesError;
-      
-      // Fetch tires
-      const { data: tiresData, error: tiresError } = await supabase
-        .from('tires')
-        .select('id, serial_number, brand, model, size, status')
-        .order('serial_number', { ascending: true });
-      
-      if (tiresError) throw tiresError;
-      
-      // Transform the fetched data with the snakeToCamel helper
-      const formattedMeasurements: ActivityLog[] = snakeToCamel<ActivityLog[]>(measurementLogs || []);
-      
-      const formattedVehicles = vehiclesData?.map(vehicle => ({
-        id: vehicle.id,
-        name: `${vehicle.registration_number} (${vehicle.brand})`
-      })) || [];
-      
-      const formattedTires = tiresData?.map(tire => ({
-        id: tire.id,
-        name: `${tire.serial_number} (${tire.brand} ${tire.size}) - ${tire.status}`
-      })) || [];
-      
-      setMeasurements(formattedMeasurements);
-      setVehicles(formattedVehicles);
-      setTires(formattedTires);
-      
-    } catch (error: any) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลได้",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: ['treadDepth', 'mileage'].includes(name) ? Number(value) : value
-    }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.vehicleId || !formData.tireId || !formData.treadDepth) {
-      toast({
-        title: "ข้อมูลไม่ครบถ้วน",
-        description: "กรุณาเลือกรถ ยาง และความลึกดอกยาง",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      // Generate notes based on tread depth
-      const isBelowThreshold = formData.treadDepth < minimumSafeTreadDepth;
-      const autoNotes = isBelowThreshold ? 
-        "ความลึกดอกยางต่ำกว่าเกณฑ์ ควรเปลี่ยนเร็วๆ นี้" : 
-        "ความลึกดอกยางอยู่ในเกณฑ์ปกติ";
-      
-      const finalNotes = formData.notes ? 
-        `${autoNotes}; ${formData.notes}` : 
-        autoNotes;
-      
-      // Create activity log
-      const activityLog = {
-        date: formData.date,
-        activity_type: 'measure',
-        tire_id: formData.tireId,
-        vehicle_id: formData.vehicleId,
-        mileage: formData.mileage,
-        cost: 0,
-        description: formData.description,
-        performed_by: formData.performedBy,
-        measurement_value: formData.treadDepth,
-        notes: finalNotes
-      };
-      
-      const { error: logError } = await supabase
-        .from('activity_logs')
-        .insert(activityLog);
-        
-      if (logError) throw logError;
-      
-      // Update tire's tread depth
-      const { error: tireError } = await supabase
-        .from('tires')
-        .update({ 
-          tread_depth: formData.treadDepth,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', formData.tireId);
-        
-      if (tireError) throw tireError;
-      
-      toast({
-        title: "บันทึกสำเร็จ",
-        description: "บันทึกการวัดความลึกดอกยางเรียบร้อยแล้ว"
-      });
-      
-      // Reset form and refresh data
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        vehicleId: "",
-        tireId: "",
-        treadDepth: 0,
-        mileage: 0,
-        performedBy: "",
-        description: "วัดความลึกดอกยางตามระยะเวลา",
-        notes: ""
-      });
-      
-      setIsAddDialogOpen(false);
-      fetchData();
-      
-    } catch (error: any) {
-      console.error("Error saving measurement:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: error.message || "ไม่สามารถบันทึกข้อมูลได้",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getTireName = (tireId: string) => {
-    const tire = tires.find(t => t.id === tireId);
-    return tire ? tire.name.split(' ')[0] : '-';
-  };
-
-  const getVehicleName = (vehicleId: string) => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? vehicle.name.split(' ')[0] : '-';
-  };
 
   return (
     <div>
@@ -244,20 +110,11 @@ const TreadDepthMeasurement = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="date">วันที่วัด</Label>
-                  <Input 
-                    id="date" 
-                    name="date" 
-                    type="date" 
-                    value={formData.date}
-                    onChange={handleChange}
-                  />
+                  <Input id="date" type="date" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="vehicle">รถ</Label>
-                  <Select 
-                    value={formData.vehicleId} 
-                    onValueChange={(value) => handleSelectChange("vehicleId", value)}
-                  >
+                  <Select>
                     <SelectTrigger id="vehicle">
                       <SelectValue placeholder="เลือกรถ" />
                     </SelectTrigger>
@@ -274,95 +131,49 @@ const TreadDepthMeasurement = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="tire">ยาง</Label>
-                  <Select 
-                    value={formData.tireId} 
-                    onValueChange={(value) => handleSelectChange("tireId", value)}
-                  >
+                  <Select>
                     <SelectTrigger id="tire">
                       <SelectValue placeholder="เลือกยาง" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tires
-                        .filter(tire => tire.name.includes('active'))
-                        .map(tire => (
-                          <SelectItem key={tire.id} value={tire.id}>
-                            {tire.name}
-                          </SelectItem>
-                        ))
-                      }
+                      {tires.map(tire => (
+                        <SelectItem key={tire.id} value={tire.id}>
+                          {tire.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="treadDepth">ความลึกดอกยาง (มม.)</Label>
-                  <Input 
-                    id="treadDepth" 
-                    name="treadDepth" 
-                    type="number" 
-                    step="0.1" 
-                    placeholder="เช่น 8.5" 
-                    value={formData.treadDepth || ""}
-                    onChange={handleChange}
-                  />
+                  <Input id="treadDepth" type="number" step="0.1" placeholder="เช่น 8.5" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="mileage">เลขไมล์ (กม.)</Label>
-                  <Input 
-                    id="mileage" 
-                    name="mileage" 
-                    type="number" 
-                    placeholder="เช่น 35000" 
-                    value={formData.mileage || ""}
-                    onChange={handleChange}
-                  />
+                  <Input id="mileage" type="number" placeholder="เช่น 35000" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="performedBy">ผู้วัด</Label>
-                  <Input 
-                    id="performedBy" 
-                    name="performedBy" 
-                    placeholder="เช่น นายสมบัติ" 
-                    value={formData.performedBy}
-                    onChange={handleChange}
-                  />
+                  <Input id="performedBy" placeholder="เช่น นายสมบัติ" />
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="description">จุดประสงค์การวัด</Label>
-                <Input 
-                  id="description" 
-                  name="description" 
-                  placeholder="เช่น วัดความลึกดอกยางตามระยะเวลา" 
-                  value={formData.description}
-                  onChange={handleChange}
-                />
+                <Input id="description" placeholder="เช่น วัดความลึกดอกยางตามระยะเวลา" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="notes">หมายเหตุ</Label>
-                <Input 
-                  id="notes" 
-                  name="notes" 
-                  placeholder="รายละเอียดเพิ่มเติม..." 
-                  value={formData.notes}
-                  onChange={handleChange}
-                />
+                <Input id="notes" placeholder="รายละเอียดเพิ่มเติม..." />
               </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 ยกเลิก
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    กำลังบันทึก...
-                  </>
-                ) : (
-                  'บันทึก'
-                )}
+              <Button onClick={() => setIsAddDialogOpen(false)}>
+                บันทึก
               </Button>
             </div>
           </DialogContent>
@@ -374,70 +185,56 @@ const TreadDepthMeasurement = () => {
           <CardTitle>ประวัติการวัดความลึกดอกยาง</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>รถ/ยาง</TableHead>
-                  <TableHead>ความลึกดอกยาง</TableHead>
-                  <TableHead>เลขไมล์</TableHead>
-                  <TableHead>ผู้วัด</TableHead>
-                  <TableHead>สถานะ</TableHead>
-                  <TableHead className="text-right">รายละเอียด</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {measurements.length > 0 ? (
-                  measurements.map((measurement) => {
-                    const measurementValue = measurement.measurementValue || 0;
-                    const isBelowThreshold = measurementValue < minimumSafeTreadDepth;
-                    
-                    return (
-                      <TableRow key={measurement.id}>
-                        <TableCell>{new Date(measurement.date).toLocaleDateString('th-TH')}</TableCell>
-                        <TableCell>
-                          {getVehicleName(measurement.vehicleId)} / {getTireName(measurement.tireId)}
-                        </TableCell>
-                        <TableCell>
-                          <span className={isBelowThreshold ? "text-red-600 font-semibold" : ""}>
-                            {measurementValue.toFixed(1)} มม.
-                          </span>
-                        </TableCell>
-                        <TableCell>{measurement.mileage?.toLocaleString()} กม.</TableCell>
-                        <TableCell>{measurement.performedBy}</TableCell>
-                        <TableCell>
-                          {isBelowThreshold ? (
-                            <div className="flex items-center text-red-600">
-                              <AlertTriangle className="h-4 w-4 mr-1" />
-                              <span>ต่ำกว่าเกณฑ์</span>
-                            </div>
-                          ) : (
-                            <span className="text-green-600">ปกติ</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center">
-                      ไม่พบข้อมูลการวัดความลึกดอกยาง
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>วันที่</TableHead>
+                <TableHead>รถ/ยาง</TableHead>
+                <TableHead>ความลึกดอกยาง</TableHead>
+                <TableHead>เลขไมล์</TableHead>
+                <TableHead>ผู้วัด</TableHead>
+                <TableHead>สถานะ</TableHead>
+                <TableHead className="text-right">รายละเอียด</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {measurements.map((measurement) => {
+                const isBelowThreshold = measurement.measurementValue < minimumSafeTreadDepth;
+                
+                return (
+                  <TableRow key={measurement.id}>
+                    <TableCell>{measurement.date}</TableCell>
+                    <TableCell>
+                      {vehicles.find(v => v.id === measurement.vehicleId)?.name.split(" ")[0]} / 
+                      {tires.find(t => t.id === measurement.tireId)?.name.split(" ")[0]}
+                    </TableCell>
+                    <TableCell>
+                      <span className={isBelowThreshold ? "text-red-600 font-semibold" : ""}>
+                        {measurement.measurementValue.toFixed(1)} มม.
+                      </span>
+                    </TableCell>
+                    <TableCell>{measurement.mileage.toLocaleString()} กม.</TableCell>
+                    <TableCell>{measurement.performedBy}</TableCell>
+                    <TableCell>
+                      {isBelowThreshold ? (
+                        <div className="flex items-center text-red-600">
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          <span>ต่ำกว่าเกณฑ์</span>
+                        </div>
+                      ) : (
+                        <span className="text-green-600">ปกติ</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon">
+                        <FileText className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+                );
+              })}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

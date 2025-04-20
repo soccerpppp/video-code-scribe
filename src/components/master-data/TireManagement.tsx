@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 
 interface TireFromDB {
   id: string;
@@ -122,6 +124,47 @@ const TireManagement = () => {
     mileage: 0,
     notes: ""
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ฟังก์ชันสำหรับดาวน์โหลดแม่แบบ Excel
+  const handleExportTemplate = () => {
+    const headers = [
+      "ซีเรียลนัมเบอร์",
+      "ยี่ห้อ",
+      "รุ่น",
+      "ขนาด",
+      "ประเภท",
+      "ยานพาหนะที่ติดตั้ง",
+      "วันที่ซื้อ",
+      "ราคาซื้อ",
+      "ผู้จำหน่าย",
+      "สถานะ",
+      "ความลึกดอกยาง",
+      "ระยะทางที่ใช้งาน",
+      "หมายเหตุ"
+    ];
+    const sampleRow = [
+      "BDG2021060001",
+      "Bridgestone",
+      "R150",
+      "11R22.5",
+      "new",
+      "",
+      "2023-01-15",
+      8500,
+      "บริษัท ไทยบริดจสโตน จำกัด",
+      "active",
+      12.5,
+      10000,
+      "ติดตั้งครั้งแรก"
+    ];
+    const wsData = [headers, sampleRow];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TiresTemplate");
+    XLSX.writeFile(wb, "tire_import_template.xlsx");
+  };
 
   const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
     return {
@@ -319,21 +362,20 @@ const TireManagement = () => {
 
   const handleDelete = async () => {
     if (!currentTire) return;
-    
     setIsSubmitting(true);
     try {
+      // อัปเดต activity_logs ที่อ้างถึงยางนี้ให้ tire_id = null ก่อน
+      await supabase.from('activity_logs').update({ tire_id: null }).eq('tire_id', currentTire.id);
+      // แล้วค่อยลบยาง
       const { error } = await supabase
         .from('tires')
         .delete()
         .eq('id', currentTire.id);
-        
       if (error) throw error;
-      
       toast({
         title: "ลบสำเร็จ",
         description: "ลบข้อมูลยางเรียบร้อยแล้ว",
       });
-      
       fetchData();
       setIsDeleteDialogOpen(false);
     } catch (error: any) {
@@ -345,6 +387,74 @@ const TireManagement = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === "csv") {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          await importTiresFromArray(results.data as any[]);
+        },
+        error: (err) => {
+          toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+        }
+      });
+    } else if (ext === "xlsx") {
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const data = evt.target?.result;
+        if (!data) return;
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        await importTiresFromArray(json as any[]);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      toast({ title: "รองรับเฉพาะไฟล์ .csv หรือ .xlsx", variant: "destructive" });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const importTiresFromArray = async (rows: any[]) => {
+    try {
+      const tiresToInsert = rows
+        .map(row => ({
+          serial_number: row["serial_number"] || row["ซีเรียลนัมเบอร์"] || "",
+          brand: row["brand"] || row["ยี่ห้อ"] || "",
+          model: row["model"] || row["รุ่น"] || "",
+          size: row["size"] || row["ขนาด"] || "",
+          type: row["type"] || row["ประเภท"] || "new",
+          vehicle_id: row["vehicle_id"] || row["ยานพาหนะที่ติดตั้ง"] || null,
+          purchase_date: row["purchase_date"] || row["วันที่ซื้อ"] || "",
+          purchase_price: Number(row["purchase_price"] || row["ราคาซื้อ"] || 0),
+          supplier: row["supplier"] || row["ผู้จำหน่าย"] || "",
+          status: row["status"] || row["สถานะ"] || "active",
+          tread_depth: Number(row["tread_depth"] || row["ความลึกดอกยาง"] || 0),
+          mileage: Number(row["mileage"] || row["ระยะทางที่ใช้งาน"] || 0),
+          notes: row["notes"] || row["หมายเหตุ"] || ""
+        }))
+        .filter(t => t.serial_number && t.brand);
+
+      if (tiresToInsert.length === 0) {
+        toast({ title: "ไม่พบข้อมูลที่นำเข้า", variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase.from('tires').insert(tiresToInsert);
+      if (error) throw error;
+      toast({ title: "นำเข้าข้อมูลสำเร็จ", description: `เพิ่มข้อมูลยาง ${tiresToInsert.length} รายการ` });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message || "นำเข้าข้อมูลไม่สำเร็จ", variant: "destructive" });
     }
   };
 
@@ -426,7 +536,7 @@ const TireManagement = () => {
               <SelectValue placeholder="สถานะทั้งหมด" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">สถานะทั้งห���ด</SelectItem>
+              <SelectItem value="all">สถานะทั้งหมด</SelectItem>
               <SelectItem value="active">ใช้งาน</SelectItem>
               <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
               <SelectItem value="retreading">หล่อดอก</SelectItem>
@@ -435,209 +545,230 @@ const TireManagement = () => {
             </SelectContent>
           </Select>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              เพิ่มยางใหม่
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[625px]">
-            <DialogHeader>
-              <DialogTitle>เพิ่มข้อมูลยางใหม่</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit}>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="serial_number">ซีเรียลนัมเบอร์</Label>
-                    <Input 
-                      id="serial_number" 
-                      name="serial_number"
-                      value={formData.serial_number}
-                      onChange={handleChange}
-                      placeholder="เช่น BDG2021060001" 
-                      required
-                    />
+        <div className="flex gap-2">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                เพิ่มยางใหม่
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[625px]">
+              <DialogHeader>
+                <DialogTitle>เพิ่มข้อมูลยางใหม่</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="serial_number">ซีเรียลนัมเบอร์</Label>
+                      <Input 
+                        id="serial_number" 
+                        name="serial_number"
+                        value={formData.serial_number}
+                        onChange={handleChange}
+                        placeholder="เช่น BDG2021060001" 
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="size">ขนาด</Label>
+                      <Input 
+                        id="size" 
+                        name="size"
+                        value={formData.size}
+                        onChange={handleChange}
+                        placeholder="เช่น 11R22.5" 
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="brand">ยี่ห้อ</Label>
+                      <Input 
+                        id="brand" 
+                        name="brand"
+                        value={formData.brand}
+                        onChange={handleChange}
+                        placeholder="เช่น Bridgestone" 
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="model">รุ่น</Label>
+                      <Input 
+                        id="model" 
+                        name="model"
+                        value={formData.model}
+                        onChange={handleChange}
+                        placeholder="เช่น R150" 
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="type">ประเภท</Label>
+                      <Select value={formData.type} onValueChange={(v) => handleSelectChange('type', v)}>
+                        <SelectTrigger id="type">
+                          <SelectValue placeholder="เลือกประเภท" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">ยางใหม่</SelectItem>
+                          <SelectItem value="retreaded">ยางหล่อดอก</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="tread_depth">ความลึกดอกยาง (มม.)</Label>
+                      <Input 
+                        id="tread_depth" 
+                        name="tread_depth"
+                        type="number" 
+                        step="0.1" 
+                        value={formData.tread_depth || ""}
+                        onChange={handleChange}
+                        placeholder="เช่น 12.5" 
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="purchase_date">วันที่ซื้อ</Label>
+                      <Input 
+                        id="purchase_date" 
+                        name="purchase_date"
+                        type="date" 
+                        value={formData.purchase_date}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="purchase_price">ราคาซื้อ (บาท)</Label>
+                      <Input 
+                        id="purchase_price" 
+                        name="purchase_price"
+                        type="number" 
+                        value={formData.purchase_price || ""}
+                        onChange={handleChange}
+                        placeholder="เช่น 8500" 
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="supplier">ผู้จำหน่าย</Label>
+                      <Input 
+                        id="supplier" 
+                        name="supplier"
+                        value={formData.supplier}
+                        onChange={handleChange}
+                        placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" 
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="status">สถานะ</Label>
+                      <Select value={formData.status} onValueChange={(v) => handleSelectChange('status', v)}>
+                        <SelectTrigger id="status">
+                          <SelectValue placeholder="เลือกสถานะ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">ใช้งาน</SelectItem>
+                          <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
+                          <SelectItem value="retreading">หล่อดอก</SelectItem>
+                          <SelectItem value="expired">หมดอายุ</SelectItem>
+                          <SelectItem value="sold">ขายแล้ว</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="size">ขนาด</Label>
-                    <Input 
-                      id="size" 
-                      name="size"
-                      value={formData.size}
-                      onChange={handleChange}
-                      placeholder="เช่น 11R22.5" 
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="brand">ยี่ห้อ</Label>
-                    <Input 
-                      id="brand" 
-                      name="brand"
-                      value={formData.brand}
-                      onChange={handleChange}
-                      placeholder="เช่น Bridgestone" 
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="model">รุ่น</Label>
-                    <Input 
-                      id="model" 
-                      name="model"
-                      value={formData.model}
-                      onChange={handleChange}
-                      placeholder="เช่น R150" 
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="type">ประเภท</Label>
-                    <Select value={formData.type} onValueChange={(v) => handleSelectChange('type', v)}>
-                      <SelectTrigger id="type">
-                        <SelectValue placeholder="เลือกประเภท" />
+                    <Label htmlFor="vehicle_id">ยานพาหนะที่ติดตั้ง</Label>
+                    <Select 
+                      value={formData.vehicle_id || "none"} 
+                      onValueChange={(v) => handleSelectChange('vehicle_id', v === "none" ? "" : v)}
+                    >
+                      <SelectTrigger id="vehicle_id">
+                        <SelectValue placeholder="เลือกยานพาหนะ (หากมี)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="new">ยางใหม่</SelectItem>
-                        <SelectItem value="retreaded">ยางหล่อดอก</SelectItem>
+                        <SelectItem value="none">ไม่มีการติดตั้ง</SelectItem>
+                        {vehicles.map(vehicle => (
+                          <SelectItem key={vehicle.id} value={vehicle.id}>
+                            {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="mileage">ระยะทางที่ใช้งาน (กม.)</Label>
+                      <Input 
+                        id="mileage" 
+                        name="mileage"
+                        type="number" 
+                        value={formData.mileage || ""}
+                        onChange={handleChange}
+                        placeholder="เช่น 10000" 
+                        required
+                      />
+                    </div>
+                  </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="tread_depth">ความลึกดอกยาง (มม.)</Label>
-                    <Input 
-                      id="tread_depth" 
-                      name="tread_depth"
-                      type="number" 
-                      step="0.1" 
-                      value={formData.tread_depth || ""}
+                    <Label htmlFor="notes">หมายเหตุ</Label>
+                    <Textarea 
+                      id="notes" 
+                      name="notes"
+                      value={formData.notes}
                       onChange={handleChange}
-                      placeholder="เช่น 12.5" 
-                      required
+                      placeholder="รายละเอียดเพิ่มเติม..." 
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="purchase_date">วันที่ซื้อ</Label>
-                    <Input 
-                      id="purchase_date" 
-                      name="purchase_date"
-                      type="date" 
-                      value={formData.purchase_date}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="purchase_price">ราคาซื้อ (บาท)</Label>
-                    <Input 
-                      id="purchase_price" 
-                      name="purchase_price"
-                      type="number" 
-                      value={formData.purchase_price || ""}
-                      onChange={handleChange}
-                      placeholder="เช่น 8500" 
-                      required
-                    />
-                  </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={closeAddDialog}>
+                    ยกเลิก
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        กำลังบันทึก...
+                      </>
+                    ) : (
+                      'บันทึก'
+                    )}
+                  </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="supplier">ผู้จำหน่าย</Label>
-                    <Input 
-                      id="supplier" 
-                      name="supplier"
-                      value={formData.supplier}
-                      onChange={handleChange}
-                      placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" 
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="status">สถานะ</Label>
-                    <Select value={formData.status} onValueChange={(v) => handleSelectChange('status', v)}>
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="เลือกสถานะ" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">ใช้งาน</SelectItem>
-                        <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
-                        <SelectItem value="retreading">หล่อดอก</SelectItem>
-                        <SelectItem value="expired">หมดอายุ</SelectItem>
-                        <SelectItem value="sold">ขายแล้ว</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="vehicle_id">ยานพาหนะที่ติดตั้ง</Label>
-                  <Select 
-                    value={formData.vehicle_id || "none"} 
-                    onValueChange={(v) => handleSelectChange('vehicle_id', v === "none" ? "" : v)}
-                  >
-                    <SelectTrigger id="vehicle_id">
-                      <SelectValue placeholder="เลือกยานพาหนะ (หากมี)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">ไม่มีการติดตั้ง</SelectItem>
-                      {vehicles.map(vehicle => (
-                        <SelectItem key={vehicle.id} value={vehicle.id}>
-                          {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="mileage">ระยะทางที่ใช้งาน (กม.)</Label>
-                    <Input 
-                      id="mileage" 
-                      name="mileage"
-                      type="number" 
-                      value={formData.mileage || ""}
-                      onChange={handleChange}
-                      placeholder="เช่น 10000" 
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="notes">หมายเหตุ</Label>
-                  <Textarea 
-                    id="notes" 
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    placeholder="รายละเอียดเพิ่มเติม..." 
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={closeAddDialog}>
-                  ยกเลิก
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      กำลังบันทึก...
-                    </>
-                  ) : (
-                    'บันทึก'
-                  )}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            นำเข้าข้อมูล
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx"
+            style={{ display: "none" }}
+            onChange={handleImportFile}
+          />
+          <Button
+            variant="secondary"
+            onClick={handleExportTemplate}
+          >
+            ดาวน์โหลดแม่แบบ
+          </Button>
+        </div>
       </div>
 
       <Card>
