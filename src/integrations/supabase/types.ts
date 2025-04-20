@@ -9,124 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      activity_logs: {
-        Row: {
-          activity_type: string
-          buyer: string | null
-          cost: number | null
-          created_at: string
-          date: string
-          description: string | null
-          id: string
-          measurement_value: number | null
-          mileage: number | null
-          new_tire_id: string | null
-          notes: string | null
-          performed_by: string | null
-          position: string | null
-          sale_price: number | null
-          tire_id: string | null
-          updated_at: string
-          vehicle_id: string | null
-        }
-        Insert: {
-          activity_type: string
-          buyer?: string | null
-          cost?: number | null
-          created_at?: string
-          date?: string
-          description?: string | null
-          id?: string
-          measurement_value?: number | null
-          mileage?: number | null
-          new_tire_id?: string | null
-          notes?: string | null
-          performed_by?: string | null
-          position?: string | null
-          sale_price?: number | null
-          tire_id?: string | null
-          updated_at?: string
-          vehicle_id?: string | null
-        }
-        Update: {
-          activity_type?: string
-          buyer?: string | null
-          cost?: number | null
-          created_at?: string
-          date?: string
-          description?: string | null
-          id?: string
-          measurement_value?: number | null
-          mileage?: number | null
-          new_tire_id?: string | null
-          notes?: string | null
-          performed_by?: string | null
-          position?: string | null
-          sale_price?: number | null
-          tire_id?: string | null
-          updated_at?: string
-          vehicle_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_logs_new_tire_id_fkey"
-            columns: ["new_tire_id"]
-            isOneToOne: false
-            referencedRelation: "tires"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_logs_tire_id_fkey"
-            columns: ["tire_id"]
-            isOneToOne: false
-            referencedRelation: "tires"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_logs_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
-            referencedRelation: "vehicles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      suppliers: {
-        Row: {
-          address: string
-          contact_person: string
-          created_at: string
-          email: string | null
-          id: string
-          name: string
-          notes: string | null
-          phone: string
-          updated_at: string
-        }
-        Insert: {
-          address: string
-          contact_person: string
-          created_at?: string
-          email?: string | null
-          id?: string
-          name: string
-          notes?: string | null
-          phone: string
-          updated_at?: string
-        }
-        Update: {
-          address?: string
-          contact_person?: string
-          created_at?: string
-          email?: string | null
-          id?: string
-          name?: string
-          notes?: string | null
-          phone?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       tire_positions: {
         Row: {
           created_at: string
@@ -311,10 +193,7 @@ export type Database = {
           brand: string
           created_at: string
           current_mileage: number
-          daily_mileage_increment: number | null
           id: string
-          initial_mileage: number | null
-          measurement_start_date: string | null
           model: string
           notes: string | null
           registration_number: string
@@ -326,10 +205,7 @@ export type Database = {
           brand: string
           created_at?: string
           current_mileage?: number
-          daily_mileage_increment?: number | null
           id?: string
-          initial_mileage?: number | null
-          measurement_start_date?: string | null
           model: string
           notes?: string | null
           registration_number: string
@@ -341,10 +217,7 @@ export type Database = {
           brand?: string
           created_at?: string
           current_mileage?: number
-          daily_mileage_increment?: number | null
           id?: string
-          initial_mileage?: number | null
-          measurement_start_date?: string | null
           model?: string
           notes?: string | null
           registration_number?: string

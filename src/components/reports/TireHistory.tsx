@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,32 +19,68 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileSearch, Calendar, Truck, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-
-interface HistoryItem {
-  id: string;
-  date: string;
-  activityType: string;
-  description: string;
-  vehicle: string;
-  vehicleId: string;
-  tireSerial: string;
-  tireId: string;
-  mileage: number;
-  cost: number;
-  notes?: string;
-}
+import { FileSearch, Calendar, Truck } from "lucide-react";
 
 const TireHistory = () => {
-  const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
-  const [vehicles, setVehicles] = useState<{id: string; name: string}[]>([{ id: "all", name: "รถทั้งหมด" }]);
-  const [isLoading, setIsLoading] = useState(true);
+  // ตัวอย่างข้อมูลประวัติการใช้งาน
+  const historyData = [
+    { 
+      id: "1", 
+      date: "2023-01-15", 
+      activityType: "purchase",
+      description: "ซื้อยางใหม่ Bridgestone R150",
+      vehicle: "70-8001",
+      tireSerial: "BDG2021060001",
+      mileage: 0,
+      cost: 8500,
+      notes: "ติดตั้งตำแหน่ง: หน้าซ้าย"
+    },
+    { 
+      id: "2", 
+      date: "2023-05-25", 
+      activityType: "rotation",
+      description: "หมุนยางตามระยะทางปกติ",
+      vehicle: "70-8001",
+      tireSerial: "BDG2021060001",
+      mileage: 25000,
+      cost: 200,
+      notes: "จาก: หน้าซ้าย, ไป: หลังซ้ายนอก (1)"
+    },
+    { 
+      id: "3", 
+      date: "2023-06-10", 
+      activityType: "measure",
+      description: "วัดความลึกดอกยาง",
+      vehicle: "70-8001",
+      tireSerial: "BDG2021060001",
+      mileage: 35000,
+      cost: 0,
+      notes: "ความลึก: 8.5 มม."
+    },
+    { 
+      id: "4", 
+      date: "2023-06-10", 
+      activityType: "repair",
+      description: "ซ่อมรูรั่วด้านข้าง",
+      vehicle: "70-8001",
+      tireSerial: "BDG2021060001",
+      mileage: 35000,
+      cost: 500,
+      notes: "ซ่อมโดย: ช่างสมศักดิ์"
+    }
+  ];
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterVehicle, setFilterVehicle] = useState<string>("all");
   const [filterActivity, setFilterActivity] = useState<string>("all");
-  
+
+  // ตัวอย่างข้อมูลรถสำหรับฟิลเตอร์
+  const vehicles = [
+    { id: "all", name: "รถทั้งหมด" },
+    { id: "70-8001", name: "70-8001 (HINO)" },
+    { id: "70-7520", name: "70-7520 (ISUZU)" },
+  ];
+
   // ตัวอย่างประเภทกิจกรรมสำหรับฟิลเตอร์
   const activityTypes = [
     { id: "all", name: "กิจกรรมทั้งหมด" },
@@ -55,98 +91,7 @@ const TireHistory = () => {
     { id: "measure", name: "วัดความลึกดอกยาง" },
     { id: "retreading", name: "หล่อดอกยาง" },
     { id: "sale", name: "ขายยาง" },
-    { id: "installation", name: "ติดตั้งยาง" }
   ];
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch all activity logs from the new activity_logs table
-      const { data: logs, error: logsError } = await supabase
-        .from('activity_logs')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (logsError) throw logsError;
-      
-      // Fetch vehicles
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('id, registration_number, brand, model')
-        .order('registration_number', { ascending: true });
-      
-      if (vehiclesError) throw vehiclesError;
-      
-      // Fetch tires
-      const { data: tiresData, error: tiresError } = await supabase
-        .from('tires')
-        .select('id, serial_number, brand, model, size')
-        .order('serial_number', { ascending: true });
-      
-      if (tiresError) throw tiresError;
-      
-      // Transform the fetched data
-      const formattedVehicles = [
-        { id: "all", name: "รถทั้งหมด" },
-        ...vehiclesData.map(vehicle => ({
-          id: vehicle.id,
-          name: `${vehicle.registration_number} (${vehicle.brand})`
-        }))
-      ];
-      
-      // Map tires and vehicles to activity logs
-      const formattedHistory: HistoryItem[] = logs?.map(log => {
-        const tire = tiresData.find(t => t.id === log.tire_id);
-        const vehicle = vehiclesData.find(v => v.id === log.vehicle_id);
-        
-        return {
-          id: log.id,
-          date: log.date,
-          activityType: log.activity_type,
-          description: log.description || getDefaultDescription(log.activity_type),
-          vehicle: vehicle ? vehicle.registration_number : '-',
-          vehicleId: log.vehicle_id || '',
-          tireSerial: tire ? tire.serial_number : '-',
-          tireId: log.tire_id || '',
-          mileage: log.mileage || 0,
-          cost: log.cost || 0,
-          notes: log.notes || (log.buyer ? `ผู้ซื้อ: ${log.buyer}` : '') || (log.performed_by ? `ผู้ดำเนินการ: ${log.performed_by}` : '')
-        };
-      }) || [];
-      
-      setHistoryData(formattedHistory);
-      setVehicles(formattedVehicles);
-      
-    } catch (error: any) {
-      console.error("Error fetching history data:", error);
-      toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลประวัติได้",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // สร้างคำอธิบายเริ่มต้นสำหรับกิจกรรมแต่ละประเภท
-  const getDefaultDescription = (activityType: string) => {
-    switch (activityType) {
-      case 'purchase': return 'ซื้อยางใหม่';
-      case 'repair': return 'ซ่อมยาง';
-      case 'change': return 'เปลี่ยนยาง';
-      case 'rotation': return 'หมุนยาง';
-      case 'measure': return 'วัดความลึกดอกยาง';
-      case 'retreading': return 'หล่อดอกยาง';
-      case 'sale': return 'ขายยาง';
-      case 'installation': return 'ติดตั้งยาง';
-      default: return activityType;
-    }
-  };
 
   // ฟังก์ชันสำหรับแสดงสีของป้ายกำกับกิจกรรม
   const getActivityBadgeColor = (activityType: string) => {
@@ -158,7 +103,6 @@ const TireHistory = () => {
       case 'measure': return 'bg-gray-500';
       case 'retreading': return 'bg-cyan-500';
       case 'sale': return 'bg-red-500';
-      case 'installation': return 'bg-indigo-500';
       default: return 'bg-gray-300';
     }
   };
@@ -173,7 +117,6 @@ const TireHistory = () => {
       case 'measure': return 'วัดความลึก';
       case 'retreading': return 'หล่อดอกยาง';
       case 'sale': return 'ขายยาง';
-      case 'installation': return 'ติดตั้งยาง';
       default: return activityType;
     }
   };
@@ -186,7 +129,7 @@ const TireHistory = () => {
       item.description.toLowerCase().includes(searchTerm.toLowerCase());
     
     // กรองตามรถ
-    const matchesVehicle = filterVehicle === 'all' || item.vehicleId === filterVehicle;
+    const matchesVehicle = filterVehicle === 'all' || item.vehicle === filterVehicle;
     
     // กรองตามประเภทกิจกรรม
     const matchesActivity = filterActivity === 'all' || item.activityType === filterActivity;
@@ -255,55 +198,47 @@ const TireHistory = () => {
           <CardTitle>ประวัติการใช้งานยาง</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>ซีเรียลยาง</TableHead>
-                  <TableHead>รถ</TableHead>
-                  <TableHead>กิจกรรม</TableHead>
-                  <TableHead>รายละเอียด</TableHead>
-                  <TableHead>เลขไมล์</TableHead>
-                  <TableHead>ค่าใช้จ่าย</TableHead>
-                  <TableHead>หมายเหตุ</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>วันที่</TableHead>
+                <TableHead>ซีเรียลยาง</TableHead>
+                <TableHead>รถ</TableHead>
+                <TableHead>กิจกรรม</TableHead>
+                <TableHead>รายละเอียด</TableHead>
+                <TableHead>เลขไมล์</TableHead>
+                <TableHead>ค่าใช้จ่าย</TableHead>
+                <TableHead>หมายเหตุ</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredHistory.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.date}</TableCell>
+                  <TableCell>{item.tireSerial}</TableCell>
+                  <TableCell>{item.vehicle}</TableCell>
+                  <TableCell>
+                    <Badge className={getActivityBadgeColor(item.activityType)}>
+                      {getActivityName(item.activityType)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell>{item.mileage.toLocaleString()} กม.</TableCell>
+                  <TableCell>{item.cost.toLocaleString()} บาท</TableCell>
+                  <TableCell>
+                    <div className="max-w-[200px] truncate" title={item.notes}>
+                      {item.notes}
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredHistory.length > 0 ? (
-                  filteredHistory.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{new Date(item.date).toLocaleDateString('th-TH')}</TableCell>
-                      <TableCell>{item.tireSerial}</TableCell>
-                      <TableCell>{item.vehicle}</TableCell>
-                      <TableCell>
-                        <Badge className={getActivityBadgeColor(item.activityType)}>
-                          {getActivityName(item.activityType)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.mileage?.toLocaleString()} กม.</TableCell>
-                      <TableCell>{item.cost?.toLocaleString()} บาท</TableCell>
-                      <TableCell>
-                        <div className="max-w-[200px] truncate" title={item.notes}>
-                          {item.notes}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">
-                      ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+              ))}
+            </TableBody>
+          </Table>
+
+          {filteredHistory.length === 0 && (
+            <div className="text-center py-6 text-muted-foreground">
+              ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา
+            </div>
           )}
         </CardContent>
       </Card>

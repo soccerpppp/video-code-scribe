@@ -45,7 +45,7 @@ const Index = () => {
     },
     {
       id: "realtime-calculation",
-      title: "คำนวณเรียวทาม",
+      title: "คำนวณการสึกหรอของยาง",
       icon: <Clock className="h-6 w-6" />,
       description: "วิเคราะห์การสึกหรอของยาง",
       onClick: () => navigate("/realtime-calculation"),

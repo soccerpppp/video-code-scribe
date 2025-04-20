@@ -1,24 +1,23 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TireWearCalculation, Tire, Vehicle } from "@/types/models";
+import { TireWearCalculation } from "@/types/models";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
 
 interface TireWearResultDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   result: TireWearCalculation | null;
-  tire?: Tire;
-  vehicle?: Vehicle;
+  getTireName: (id: string) => string;
+  getVehicleName: (id: string) => string;
 }
 
 export function TireWearResultDialog({
   open,
   onOpenChange,
   result,
-  tire,
-  vehicle
+  getTireName,
+  getVehicleName
 }: TireWearResultDialogProps) {
   const getStatusIcon = (status?: 'normal' | 'warning' | 'critical' | 'error') => {
     switch (status) {
@@ -33,20 +32,6 @@ export function TireWearResultDialog({
       default:
         return <Info className="h-8 w-8" />;
     }
-  };
-
-  const getTireName = (id: string): string => {
-    if (tire && tire.id === id) {
-      return `${tire.brand} ${tire.model} - ${tire.serialNumber}`;
-    }
-    return id;
-  };
-
-  const getVehicleName = (id: string): string => {
-    if (vehicle && vehicle.id === id) {
-      return `${vehicle.registrationNumber} - ${vehicle.brand} ${vehicle.model}`;
-    }
-    return id;
   };
 
   return (
@@ -74,8 +59,12 @@ export function TireWearResultDialog({
                 <p className="font-medium">{getVehicleName(result.vehicle_id)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">ระยะทาง</p>
-                <p className="font-medium">{result.current_mileage.toLocaleString()} กม.</p>
+                <p className="text-sm text-gray-500">ระยะทางวันนี้</p>
+                <p className="font-medium">
+                  {result.today_mileage !== undefined
+                    ? result.today_mileage.toLocaleString() + " กม."
+                    : "-"}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">ความลึกดอกยาง</p>
@@ -85,33 +74,7 @@ export function TireWearResultDialog({
             
             <div className="bg-gray-50 p-3 rounded-md">
               <p className="text-sm text-gray-500 mb-1">สูตรคำนวณการสึกหรอ</p>
-              <p className="font-mono text-sm">{result.wear_formula || '-'}</p>
-            </div>
-            
-            <div>
-              <p className="text-sm text-gray-500 mb-1">ผลการวิเคราะห์</p>
-              <div className="bg-gray-50 p-3 rounded-md">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium">การสึกหรอ</span>
-                  <span className={`font-bold ${
-                    result.predicted_wear_percentage >= 75 ? 'text-red-500' : 
-                    result.predicted_wear_percentage >= 50 ? 'text-amber-500' : 
-                    'text-green-500'
-                  }`}>
-                    {result.predicted_wear_percentage}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      result.predicted_wear_percentage >= 75 ? 'bg-red-500' : 
-                      result.predicted_wear_percentage >= 50 ? 'bg-amber-500' : 
-                      'bg-green-500'
-                    }`} 
-                    style={{ width: `${result.predicted_wear_percentage}%` }}
-                  ></div>
-                </div>
-              </div>
+              <p className="font-mono text-sm">{result.wear_formula}</p>
             </div>
             
             <div className="bg-gray-50 p-3 rounded-md">
@@ -121,7 +84,20 @@ export function TireWearResultDialog({
             
             <div>
               <p className="text-sm text-gray-500">ประมาณการระยะทางที่สามารถใช้งานได้อีก</p>
-              <p className="font-medium">{result.predicted_lifespan?.toLocaleString()} กม.</p>
+              <p className="font-medium">
+                {/* รองรับทั้งจากฐานข้อมูล (snake_case) และจาก logic (camelCase) */}
+                {(result.predicted_km_left ?? result.predictedKmLeft) !== undefined
+                  ? `${(result.predicted_km_left ?? result.predictedKmLeft).toLocaleString()} กม.`
+                  : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">ประมาณการระยะเวลาที่สามารถใช้งานได้อีก (วัน)</p>
+              <p className="font-medium">
+                {(result.predicted_days_left ?? result.predictedDaysLeft) !== undefined
+                  ? `${(result.predicted_days_left ?? result.predictedDaysLeft).toLocaleString()} วัน`
+                  : "-"}
+              </p>
             </div>
             
             <Button onClick={() => onOpenChange(false)} className="w-full">

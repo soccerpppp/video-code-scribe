@@ -1,4 +1,3 @@
-
 // โมเดลสำหรับข้อมูลยาง
 export interface Tire {
   id: string;
@@ -7,13 +6,14 @@ export interface Tire {
   model: string;
   size: string;
   type: 'new' | 'retreaded'; // ยางใหม่หรือยางหล่อดอก
-  position?: string; // ตำแหน่งที่ติดตั้งบนรถ
-  vehicleId?: string; // รถที่ติดตั้งยางนี้
+  position?: string; // ตำแหน่งที่ติดตั้งบนรถ (optional)
+  vehicleId?: string; // รถที่ติดตั้งยางนี้ (optional)
   purchaseDate: string;
   purchasePrice: number;
   supplier: string;
   status: 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold';
   treadDepth: number; // ความลึกดอกยางล่าสุด (มิลลิเมตร)
+  initialTreadDepth?: number; // ความลึกดอกยางตอนติดตั้ง (มิลลิเมตร)
   mileage: number; // ระยะทางที่ใช้งานล่าสุด
   notes?: string;
 }
@@ -26,10 +26,8 @@ export interface Vehicle {
   brand: string; // ยี่ห้อรถ
   model: string; // รุ่นรถ
   wheelPositions: number; // จำนวนตำแหน่งล้อ
-  initialMileage?: number; // ระยะทางเริ่มต้น
   currentMileage: number; // ระยะทางปัจจุบัน
-  measurementStartDate?: string; // วันที่เริ่มวัด
-  dailyMileageIncrement?: number; // ระยะทางที่เพิ่มต่อวัน
+  todayMileage?: number; // เพิ่มบรรทัดนี้
   tirePositions: TirePosition[]; // ตำแหน่งล้อทั้งหมดของรถ
   notes?: string;
 }
@@ -55,52 +53,25 @@ export interface Supplier {
 export interface ActivityLog {
   id: string;
   date: string;
-  activityType: string;
-  tireId?: string;
-  vehicleId?: string;
-  position?: string;
-  mileage?: number;
-  cost?: number;
-  description?: string;
-  performedBy?: string;
-  measurementValue?: number;
-  newTireId?: string;
-  salePrice?: number;
-  buyer?: string;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  // Additional properties specific to activity types
-  newPosition?: string; // For tire rotation activities
-}
-
-// Unified analysis types to solve the type conflicts
-export type TireWearAnalysisTypeUnified = 'predict_wear' | 'cluster_analysis' | 'time_series_prediction' | 'standard_prediction' | 'statistical_regression' | 'position_based';
-
-// โมเดลสำหรับผลลัพธ์การวิเคราะห์การสึกหรอของยาง
-export interface TireWearAnalysisResult {
+  activityType: 
+    | 'repair' // ซ่อมยาง
+    | 'change' // เปลี่ยนยาง
+    | 'rotation' // หมุนยาง 
+    | 'measure' // วัดความลึกดอกยาง
+    | 'retreading' // ส่งหล่อดอกยาง
+    | 'sale'; // ขายยาง
   tireId: string;
-  currentDepth: number;
-  position?: string;
-  currentAgeDays: number;
-  wearRatePerDay: number;
-  wearRatePer1000Km: number;
-  remainingDepthToLegal: number;
-  remainingDepthToSafety: number;
-  daysToLegal: number;
-  daysToSafety: number;
-  predictedDateLegal: Date;
-  predictedDateSafety: Date;
-  statusCode: 'normal' | 'warning' | 'critical' | 'error';
-  status: string;
-  analysisMethod: string;
-  analysisResult: string;
-  recommendation: string;
-  wearFormula: string;
-  confidenceLevel: 'high' | 'medium' | 'low';
-  // Add missing properties that are used in code
-  predictedWearPercentage: number;
-  predictedLifespan?: number;
+  vehicleId: string;
+  mileage: number;
+  cost: number;
+  description: string;
+  performedBy: string;
+  newTireId?: string; // กรณีเปลี่ยนยาง
+  newPosition?: string; // กรณีหมุนยาง
+  measurementValue?: number; // กรณีวัดความลึกดอกยาง
+  salePrice?: number; // กรณีขายยาง
+  buyer?: string; // กรณีขายยาง
+  notes?: string;
 }
 
 // โมเดลสำหรับการคำนวณความเสียหายของยาง
@@ -111,9 +82,9 @@ export interface TireWearCalculation {
   current_age_days: number;
   tread_depth_mm: number;
   predicted_wear_percentage: number;
-  predicted_lifespan?: number; // Made optional as it's calculated, not from DB
-  wear_formula?: string; // Made optional as it's calculated, not from DB
-  status_code?: 'normal' | 'warning' | 'critical' | 'error'; // Made optional as it's calculated, not from DB
+  predicted_lifespan?: number;
+  wear_formula?: string;
+  status_code?: 'normal' | 'warning' | 'critical' | 'error';
   tire_id: string;
   vehicle_id: string;
   analysis_method: string;
@@ -122,5 +93,5 @@ export interface TireWearCalculation {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  analysis_type: TireWearAnalysisTypeUnified;
+  analysis_type?: 'predict_wear' | 'cluster_analysis' | 'time_series_prediction';
 }
