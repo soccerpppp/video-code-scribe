@@ -26,7 +26,10 @@ export interface Vehicle {
   brand: string; // ยี่ห้อรถ
   model: string; // รุ่นรถ
   wheelPositions: number; // จำนวนตำแหน่งล้อ
+  initialMileage?: number; // ระยะทางเริ่มต้น
   currentMileage: number; // ระยะทางปัจจุบัน
+  measurementStartDate?: string; // วันที่เริ่มวัด
+  dailyMileageIncrement?: number; // ระยะทางที่เพิ่มต่อวัน
   tirePositions: TirePosition[]; // ตำแหน่งล้อทั้งหมดของรถ
   notes?: string;
 }

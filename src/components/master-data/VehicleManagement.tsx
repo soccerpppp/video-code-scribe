@@ -194,14 +194,17 @@ const VehicleManagement = () => {
                   <TableHead>ยี่ห้อ</TableHead>
                   <TableHead>รุ่น</TableHead>
                   <TableHead>จำนวนล้อ</TableHead>
-                  <TableHead>ระยะทาง (กม.)</TableHead>
+                  <TableHead>ระยะเริ่มต้น (กม.)</TableHead>
+                  <TableHead>ระยะทางปัจจุบัน (กม.)</TableHead>
+                  <TableHead>วันที่เริ่มวัด</TableHead>
+                  <TableHead>เพิ่มระยะทาง/วัน (กม.)</TableHead>
                   <TableHead className="text-right">การดำเนินการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredVehicles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-4">ไม่พบข้อมูล</TableCell>
+                    <TableCell colSpan={10} className="text-center py-4">ไม่พบข้อมูล</TableCell>
                   </TableRow>
                 ) : (
                   filteredVehicles.map((vehicle) => (
@@ -211,7 +214,10 @@ const VehicleManagement = () => {
                       <TableCell>{vehicle.brand}</TableCell>
                       <TableCell>{vehicle.model}</TableCell>
                       <TableCell>{vehicle.wheelPositions}</TableCell>
-                      <TableCell>{vehicle.currentMileage}</TableCell>
+                      <TableCell>{vehicle.initialMileage?.toLocaleString()}</TableCell>
+                      <TableCell>{vehicle.currentMileage.toLocaleString()}</TableCell>
+                      <TableCell>{vehicle.measurementStartDate ? new Date(vehicle.measurementStartDate).toLocaleDateString('th-TH') : '-'}</TableCell>
+                      <TableCell>{vehicle.dailyMileageIncrement?.toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button variant="outline" size="icon">
@@ -230,6 +236,66 @@ const VehicleManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>เพิ่มข้อมูลรถใหม่</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="registrationNumber">ทะเบียนรถ</Label>
+              <Input id="registrationNumber" placeholder="เช่น 1กก1234" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="type">ประเภทรถ</Label>
+                <Input id="type" placeholder="เช่น รถบรรทุก 6 ล้อ" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="brand">ยี่ห้อ</Label>
+                <Input id="brand" placeholder="เช่น Isuzu" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="model">รุ่น</Label>
+                <Input id="model" placeholder="เช่น FRR90" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="wheelPositions">จำนวนล้อ</Label>
+                <Input id="wheelPositions" type="number" placeholder="เช่น 6" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="initialMileage">ระยะทางเริ่มต้น (กม.)</Label>
+                <Input id="initialMileage" type="number" placeholder="เช่น 150000" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="dailyMileageIncrement">เพิ่มระยะทางต่อวัน (กม.)</Label>
+                <Input id="dailyMileageIncrement" type="number" placeholder="เช่น 100" />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="measurementStartDate">วันที่เริ่มวัด</Label>
+              <Input id="measurementStartDate" type="date" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">หมายเหตุ</Label>
+              <Input id="notes" placeholder="รายละเอียดเพิ่มเติม..." />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button onClick={() => setIsAddDialogOpen(false)}>
+              บันทึก
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

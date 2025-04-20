@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tire, Vehicle, TireWearCalculation, TireWearAnalysisTypeUnified } from "@/types/models";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,21 +58,21 @@ export const useTireWearData = () => {
         model: vehicle.model,
         type: vehicle.type,
         wheelPositions: vehicle.wheel_positions,
+        initialMileage: vehicle.initial_mileage,
         currentMileage: vehicle.current_mileage,
+        measurementStartDate: vehicle.measurement_start_date,
+        dailyMileageIncrement: vehicle.daily_mileage_increment,
         notes: vehicle.notes,
         tirePositions: []
       })) || [];
 
-      // Check the database structure of the calculation results
       console.log("Raw calculation data from DB:", historyData?.[0]);
 
       const formattedCalculations: TireWearCalculation[] = historyData?.map(calc => {
-        // Calculate additional values for fields that don't exist in the database
         const predictedLifespan = calc.current_mileage * (1 / (calc.predicted_wear_percentage / 100));
         const wearFormula = `${calc.analysis_method}: ${calc.tread_depth_mm}mm / ${calc.current_mileage}km`;
         let statusCode: 'normal' | 'warning' | 'critical' | 'error' | undefined = undefined;
         
-        // Determine status code based on wear percentage
         if (calc.predicted_wear_percentage >= 80) {
           statusCode = 'critical';
         } else if (calc.predicted_wear_percentage >= 60) {
@@ -82,7 +81,6 @@ export const useTireWearData = () => {
           statusCode = 'normal';
         }
         
-        // Make sure analysis_type is valid for the database constraint
         const validAnalysisType = mapAnalysisType(calc.analysis_type);
         
         return {
@@ -122,9 +120,7 @@ export const useTireWearData = () => {
     }
   };
 
-  // Helper function to map string analysis type to TireWearAnalysisTypeUnified
   const mapAnalysisType = (type: string): TireWearAnalysisTypeUnified => {
-    // List of valid analysis types that match the database constraint
     const validTypes: TireWearAnalysisTypeUnified[] = [
       'predict_wear',
       'cluster_analysis',
@@ -134,12 +130,10 @@ export const useTireWearData = () => {
       'position_based'
     ];
     
-    // Check if the type is already valid
     if (validTypes.includes(type as TireWearAnalysisTypeUnified)) {
       return type as TireWearAnalysisTypeUnified;
     }
     
-    // If not valid, return a default safe value
     console.warn(`Invalid analysis type: ${type}, defaulting to 'predict_wear'`);
     return 'predict_wear';
   };
