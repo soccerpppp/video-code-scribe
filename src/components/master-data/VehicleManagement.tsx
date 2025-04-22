@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
 
 interface Vehicle {
   id: string;
@@ -72,6 +74,7 @@ const VehicleManagement = () => {
   const [currentVehicle, setCurrentVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({ ...emptyForm });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { selectedIds, handleSelectAll, toggleSelection, clearSelection } = useMultiSelect(vehicles);
 
   const fetchVehicles = async () => {
     setIsLoading(true);
@@ -140,21 +143,29 @@ const VehicleManagement = () => {
   };
 
   const handleDelete = async () => {
-    if (!currentVehicle) return;
-    setIsSubmitting(true);
+    if (selectedIds.size === 0) return;
+    
     try {
-      // อัปเดต activity_logs ที่อ้างถึงรถนี้ให้ vehicle_id = null ก่อน
-      await supabase.from('activity_logs').update({ vehicle_id: null }).eq('vehicle_id', currentVehicle.id);
-      // แล้วค่อยลบรถ
-      const { error } = await supabase.from('vehicles').delete().eq('id', currentVehicle.id);
+      const { error } = await supabase
+        .from('vehicles')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
       if (error) throw error;
-      toast({ title: "ลบสำเร็จ", description: "ลบข้อมูลรถเรียบร้อยแล้ว" });
+
+      toast({
+        title: "ลบสำเร็จ",
+        description: `ลบข้อมูลรถ ${selectedIds.size} คันเรียบร้อยแล้ว`
+      });
+
+      clearSelection();
       fetchVehicles();
-      closeDialog();
     } catch (error: any) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message || "ไม่สามารถลบข้อมูลได้", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -402,6 +413,12 @@ const VehicleManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedIds.size === filteredVehicles.length && filteredVehicles.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>ทะเบียนรถ</TableHead>
                   <TableHead>ประเภท</TableHead>
                   <TableHead>ยี่ห้อ/รุ่น</TableHead>
@@ -416,8 +433,14 @@ const VehicleManagement = () => {
               </TableHeader>
               <TableBody>
                 {filteredVehicles.length > 0 ? (
-                  filteredVehicles.map(vehicle => (
+                  filteredVehicles.map((vehicle) => (
                     <TableRow key={vehicle.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(vehicle.id)}
+                          onCheckedChange={() => toggleSelection(vehicle.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{vehicle.registration_number}</TableCell>
                       <TableCell>{vehicle.type}</TableCell>
                       <TableCell>{vehicle.brand} {vehicle.model}</TableCell>
