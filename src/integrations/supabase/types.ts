@@ -9,6 +9,127 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          activity_type: string
+          buyer: string | null
+          cost: number | null
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          measurement_value: number | null
+          mileage: number | null
+          new_tire_id: string | null
+          notes: string | null
+          performed_by: string | null
+          position: string | null
+          sale_price: number | null
+          tire_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          buyer?: string | null
+          cost?: number | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          measurement_value?: number | null
+          mileage?: number | null
+          new_tire_id?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          position?: string | null
+          sale_price?: number | null
+          tire_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          buyer?: string | null
+          cost?: number | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          measurement_value?: number | null
+          mileage?: number | null
+          new_tire_id?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          position?: string | null
+          sale_price?: number | null
+          tire_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_new_tire_id_fkey"
+            columns: ["new_tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_tire_id_fkey"
+            columns: ["tire_id"]
+            isOneToOne: false
+            referencedRelation: "tires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string
+          contact_name: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          tax_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          contact_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          contact_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tire_positions: {
         Row: {
           created_at: string
@@ -59,15 +180,22 @@ export type Database = {
           calculation_date: string
           created_at: string
           current_age_days: number
-          current_mileage: number
+          current_mileage: number | null
           id: string
           notes: string | null
+          predicted_days_left: number | null
+          predicted_km_left: number | null
           predicted_wear_percentage: number
           recommendation: string
+          remaining_tread_depth: number | null
+          status_code: string | null
           tire_id: string
+          today_mileage: number | null
           tread_depth_mm: number
           updated_at: string
           vehicle_id: string
+          wear_formula: string | null
+          wear_percent: number | null
         }
         Insert: {
           analysis_method: string
@@ -76,15 +204,22 @@ export type Database = {
           calculation_date?: string
           created_at?: string
           current_age_days: number
-          current_mileage: number
+          current_mileage?: number | null
           id?: string
           notes?: string | null
+          predicted_days_left?: number | null
+          predicted_km_left?: number | null
           predicted_wear_percentage: number
           recommendation: string
+          remaining_tread_depth?: number | null
+          status_code?: string | null
           tire_id: string
+          today_mileage?: number | null
           tread_depth_mm: number
           updated_at?: string
           vehicle_id: string
+          wear_formula?: string | null
+          wear_percent?: number | null
         }
         Update: {
           analysis_method?: string
@@ -93,15 +228,22 @@ export type Database = {
           calculation_date?: string
           created_at?: string
           current_age_days?: number
-          current_mileage?: number
+          current_mileage?: number | null
           id?: string
           notes?: string | null
+          predicted_days_left?: number | null
+          predicted_km_left?: number | null
           predicted_wear_percentage?: number
           recommendation?: string
+          remaining_tread_depth?: number | null
+          status_code?: string | null
           tire_id?: string
+          today_mileage?: number | null
           tread_depth_mm?: number
           updated_at?: string
           vehicle_id?: string
+          wear_formula?: string | null
+          wear_percent?: number | null
         }
         Relationships: [
           {
@@ -193,10 +335,16 @@ export type Database = {
           brand: string
           created_at: string
           current_mileage: number
+          date: string | null
+          driver: string | null
+          first_measurement_date: string | null
           id: string
+          last_measurement_date: string | null
           model: string
           notes: string | null
           registration_number: string
+          start_mileage: number | null
+          today_mileage: number | null
           type: string
           updated_at: string
           wheel_positions: number
@@ -205,10 +353,16 @@ export type Database = {
           brand: string
           created_at?: string
           current_mileage?: number
+          date?: string | null
+          driver?: string | null
+          first_measurement_date?: string | null
           id?: string
+          last_measurement_date?: string | null
           model: string
           notes?: string | null
           registration_number: string
+          start_mileage?: number | null
+          today_mileage?: number | null
           type: string
           updated_at?: string
           wheel_positions: number
@@ -217,10 +371,16 @@ export type Database = {
           brand?: string
           created_at?: string
           current_mileage?: number
+          date?: string | null
+          driver?: string | null
+          first_measurement_date?: string | null
           id?: string
+          last_measurement_date?: string | null
           model?: string
           notes?: string | null
           registration_number?: string
+          start_mileage?: number | null
+          today_mileage?: number | null
           type?: string
           updated_at?: string
           wheel_positions?: number

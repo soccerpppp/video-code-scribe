@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
-  DialogTrigger 
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -18,14 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+<<<<<<< HEAD
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,137 +90,82 @@ interface Vehicle {
   notes?: string;
   tirePositions: [];
 }
+=======
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Tire } from "@/types/models";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
 
 const TireManagement = () => {
   const [tires, setTires] = useState<Tire[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+<<<<<<< HEAD
   const [currentTire, setCurrentTire] = useState<Tire | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dialog, setDialog] = useState<"add" | "edit" | "delete" | "bulkDelete" | null>(null);
 
+=======
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
   const [formData, setFormData] = useState({
-    serial_number: "",
+    serialNumber: "",
     brand: "",
     model: "",
     size: "",
-    type: "new" as 'new' | 'retreaded',
-    vehicle_id: "" as string | null,
-    purchase_date: new Date().toISOString().split('T')[0],
-    purchase_price: 0,
+    type: "new",
+    position: "",
+    vehicleId: "",
+    purchaseDate: "",
+    purchasePrice: 0,
     supplier: "",
-    status: "active" as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
-    tread_depth: 10,
+    status: "active",
+    treadDepth: 0,
     mileage: 0,
-    notes: ""
+    notes: "",
   });
+  const [currentTire, setCurrentTire] = useState<Tire | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { selectedIds, handleSelectAll, toggleSelection, clearSelection } = useMultiSelect(tires);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // ฟังก์ชันสำหรับดาวน์โหลดแม่แบบ Excel
-  const handleExportTemplate = () => {
-    const headers = [
-      "ซีเรียลนัมเบอร์",
-      "ยี่ห้อ",
-      "รุ่น",
-      "ขนาด",
-      "ประเภท",
-      "ยานพาหนะที่ติดตั้ง",
-      "วันที่ซื้อ",
-      "ราคาซื้อ",
-      "ผู้จำหน่าย",
-      "สถานะ",
-      "ความลึกดอกยาง",
-      "ระยะทางที่ใช้งาน",
-      "หมายเหตุ"
-    ];
-    const sampleRow = [
-      "BDG2021060001",
-      "Bridgestone",
-      "R150",
-      "11R22.5",
-      "new",
-      "",
-      "2023-01-15",
-      8500,
-      "บริษัท ไทยบริดจสโตน จำกัด",
-      "active",
-      12.5,
-      10000,
-      "ติดตั้งครั้งแรก"
-    ];
-    const wsData = [headers, sampleRow];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "TiresTemplate");
-    XLSX.writeFile(wb, "tire_import_template.xlsx");
-  };
-
-  const mapDbTireToTire = (dbTire: TireFromDB): Tire => {
-    return {
-      id: dbTire.id,
-      serialNumber: dbTire.serial_number,
-      brand: dbTire.brand,
-      model: dbTire.model,
-      size: dbTire.size,
-      type: dbTire.type as 'new' | 'retreaded',
-      position: dbTire.position,
-      vehicle_id: dbTire.vehicle_id,
-      purchaseDate: dbTire.purchase_date,
-      purchasePrice: dbTire.purchase_price,
-      supplier: dbTire.supplier,
-      status: dbTire.status as 'active' | 'maintenance' | 'retreading' | 'expired' | 'sold',
-      treadDepth: dbTire.tread_depth,
-      mileage: dbTire.mileage,
-      notes: dbTire.notes
-    };
-  };
-
-  const mapDbVehicleToVehicle = (dbVehicle: VehicleFromDB): Vehicle => {
-    return {
-      id: dbVehicle.id,
-      registrationNumber: dbVehicle.registration_number,
-      brand: dbVehicle.brand,
-      model: dbVehicle.model,
-      type: dbVehicle.type,
-      wheelPositions: dbVehicle.wheel_positions,
-      currentMileage: dbVehicle.current_mileage,
-      notes: dbVehicle.notes,
-      tirePositions: []
-    };
-  };
-
-  const fetchData = async () => {
+  const fetchTires = async () => {
     setIsLoading(true);
     try {
-      const { data: tiresData, error: tiresError } = await supabase
-        .from('tires')
-        .select('*')
-        .order('serial_number', { ascending: true });
-      
-      if (tiresError) throw tiresError;
-      setTires(tiresData ? tiresData.map(mapDbTireToTire) : []);
-      
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('id, registration_number, brand, model, type, wheel_positions, current_mileage, notes, created_at, updated_at')
-        .order('registration_number', { ascending: true });
-      
-      if (vehiclesError) throw vehiclesError;
-      setVehicles(vehiclesData ? vehiclesData.map(mapDbVehicleToVehicle) : []);
+      const { data, error } = await supabase
+        .from("tires")
+        .select("*")
+        .order("serial_number", { ascending: true });
+      if (error) throw error;
+
+      const formattedTires = data?.map((tire) => ({
+        id: tire.id,
+        serialNumber: tire.serial_number,
+        brand: tire.brand,
+        model: tire.model,
+        size: tire.size,
+        type: tire.type as "new" | "retreaded",
+        position: tire.position,
+        vehicleId: tire.vehicle_id,
+        purchaseDate: tire.purchase_date,
+        purchasePrice: tire.purchase_price,
+        supplier: tire.supplier,
+        status: tire.status as "active" | "maintenance" | "retreading" | "expired" | "sold",
+        treadDepth: tire.tread_depth,
+        mileage: tire.mileage,
+        notes: tire.notes,
+      })) || [];
+
+      setTires(formattedTires);
     } catch (error: any) {
-      console.error("Error fetching data:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลได้",
-        variant: "destructive"
+        description: "ไม่สามารถดึงข้อมูลยางได้",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -234,9 +173,10 @@ const TireManagement = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchTires();
   }, []);
 
+<<<<<<< HEAD
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-500';
@@ -307,84 +247,74 @@ const TireManagement = () => {
     }));
   };
 
+=======
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-      if (currentTire) {
+      const {
+        serialNumber,
+        brand,
+        model,
+        size,
+        type,
+        position,
+        vehicleId,
+        purchaseDate,
+        purchasePrice,
+        supplier,
+        status,
+        treadDepth,
+        mileage,
+        notes,
+      } = formData;
+
+      const payload = {
+        serial_number: serialNumber,
+        brand: brand,
+        model: model,
+        size: size,
+        type: type,
+        position: position || null,
+        vehicle_id: vehicleId || null,
+        purchase_date: purchaseDate,
+        purchase_price: purchasePrice,
+        supplier: supplier,
+        status: status,
+        tread_depth: treadDepth,
+        mileage: mileage,
+        notes: notes || null,
+      };
+
+      if (isEditDialogOpen && currentTire) {
         const { error } = await supabase
-          .from('tires')
-          .update({
-            serial_number: formData.serial_number,
-            brand: formData.brand,
-            model: formData.model,
-            size: formData.size,
-            type: formData.type,
-            vehicle_id: formData.vehicle_id,
-            purchase_date: formData.purchase_date,
-            purchase_price: formData.purchase_price,
-            supplier: formData.supplier,
-            status: formData.status,
-            tread_depth: formData.tread_depth,
-            mileage: formData.mileage,
-            notes: formData.notes,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', currentTire.id);
-          
+          .from("tires")
+          .update(payload)
+          .eq("id", currentTire.id);
         if (error) throw error;
-        
-        toast({
-          title: "บันทึกสำเร็จ",
-          description: "อัปเดตข้อมูลยางเรียบร้อยแล้ว",
-        });
-        
-        setIsEditDialogOpen(false);
+        toast({ title: "บันทึกสำเร็จ", description: "แก้ไขข้อมูลยางเรียบร้อยแล้ว" });
       } else {
-        const { error } = await supabase
-          .from('tires')
-          .insert({
-            serial_number: formData.serial_number,
-            brand: formData.brand,
-            model: formData.model,
-            size: formData.size,
-            type: formData.type,
-            vehicle_id: formData.vehicle_id,
-            purchase_date: formData.purchase_date,
-            purchase_price: formData.purchase_price,
-            supplier: formData.supplier,
-            status: formData.status,
-            tread_depth: formData.tread_depth,
-            mileage: formData.mileage,
-            notes: formData.notes
-          });
-          
+        const { error } = await supabase.from("tires").insert([payload]);
         if (error) throw error;
-        
-        toast({
-          title: "บันทึกสำเร็จ",
-          description: "เพิ่มข้อมูลยางใหม่เรียบร้อยแล้ว",
-        });
-        
-        setIsAddDialogOpen(false);
+        toast({ title: "บันทึกสำเร็จ", description: "เพิ่มข้อมูลยางเรียบร้อยแล้ว" });
       }
-      
-      fetchData();
-      
-      resetForm();
+
+      fetchTires();
+      closeDialog();
     } catch (error: any) {
-      console.error("Error saving tire:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: error.message || "ไม่สามารถบันทึกข้อมูลได้",
-        variant: "destructive"
+        description: error.message,
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+<<<<<<< HEAD
   const handleDelete = async (ids: string[]) => {
     setIsSubmitting(true);
     try {
@@ -392,144 +322,100 @@ const TireManagement = () => {
       await supabase.from('tire_activity_logs').update({ tire_id: null }).in('tire_id', ids);
       // แล้วค่อยลบยาง
       const { error } = await supabase.from('tires').delete().in('id', ids);
+=======
+  const handleDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    try {
+      const { error } = await supabase
+        .from('tires')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
       if (error) throw error;
+
       toast({
         title: "ลบสำเร็จ",
+<<<<<<< HEAD
         description: `ลบข้อมูลยาง ${ids.length} รายการเรียบร้อยแล้ว`,
       });
       fetchData();
       setSelectedIds([]);
       closeDialog();
+=======
+        description: `ลบข้อมูลยาง ${selectedIds.size} เส้นเรียบร้อยแล้ว`
+      });
+
+      clearSelection();
+      fetchTires();
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
     } catch (error: any) {
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: error.message || "ไม่สามารถลบข้อมูลได้",
+        description: error.message,
         variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const filteredTires = tires.filter(
+    (tire) =>
+      tire.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tire.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tire.model.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === "csv") {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          await importTiresFromArray(results.data as any[]);
-        },
-        error: (err) => {
-          toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
-        }
+  const openDialog = (type: "add" | "edit", tire?: Tire) => {
+    if (type === "add") {
+      setFormData({
+        serialNumber: "",
+        brand: "",
+        model: "",
+        size: "",
+        type: "new",
+        position: "",
+        vehicleId: "",
+        purchaseDate: "",
+        purchasePrice: 0,
+        supplier: "",
+        status: "active",
+        treadDepth: 0,
+        mileage: 0,
+        notes: "",
       });
-    } else if (ext === "xlsx") {
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const data = evt.target?.result;
-        if (!data) return;
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        await importTiresFromArray(json as any[]);
-      };
-      reader.readAsArrayBuffer(file);
-    } else {
-      toast({ title: "รองรับเฉพาะไฟล์ .csv หรือ .xlsx", variant: "destructive" });
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const importTiresFromArray = async (rows: any[]) => {
-    try {
-      const tiresToInsert = rows
-        .map(row => ({
-          serial_number: row["serial_number"] || row["ซีเรียลนัมเบอร์"] || "",
-          brand: row["brand"] || row["ยี่ห้อ"] || "",
-          model: row["model"] || row["รุ่น"] || "",
-          size: row["size"] || row["ขนาด"] || "",
-          type: row["type"] || row["ประเภท"] || "new",
-          vehicle_id: row["vehicle_id"] || row["ยานพาหนะที่ติดตั้ง"] || null,
-          purchase_date: row["purchase_date"] || row["วันที่ซื้อ"] || "",
-          purchase_price: Number(row["purchase_price"] || row["ราคาซื้อ"] || 0),
-          supplier: row["supplier"] || row["ผู้จำหน่าย"] || "",
-          status: row["status"] || row["สถานะ"] || "active",
-          tread_depth: Number(row["tread_depth"] || row["ความลึกดอกยาง"] || 0),
-          mileage: Number(row["mileage"] || row["ระยะทางที่ใช้งาน"] || 0),
-          notes: row["notes"] || row["หมายเหตุ"] || ""
-        }))
-        .filter(t => t.serial_number && t.brand);
-
-      if (tiresToInsert.length === 0) {
-        toast({ title: "ไม่พบข้อมูลที่นำเข้า", variant: "destructive" });
-        return;
-      }
-
-      const { error } = await supabase.from('tires').insert(tiresToInsert);
-      if (error) throw error;
-      toast({ title: "นำเข้าข้อมูลสำเร็จ", description: `เพิ่มข้อมูลยาง ${tiresToInsert.length} รายการ` });
-      fetchData();
-    } catch (err: any) {
-      toast({ title: "เกิดข้อผิดพลาด", description: err.message || "นำเข้าข้อมูลไม่สำเร็จ", variant: "destructive" });
+      setCurrentTire(null);
+      setIsAddDialogOpen(true);
+      setIsEditDialogOpen(false);
+      setIsDeleteDialogOpen(false);
+    } else if (type === "edit" && tire) {
+      setFormData({
+        serialNumber: tire.serialNumber,
+        brand: tire.brand,
+        model: tire.model,
+        size: tire.size,
+        type: tire.type,
+        position: tire.position || "",
+        vehicleId: tire.vehicleId || "",
+        purchaseDate: tire.purchaseDate,
+        purchasePrice: tire.purchasePrice,
+        supplier: tire.supplier,
+        status: tire.status,
+        treadDepth: tire.treadDepth,
+        mileage: tire.mileage,
+        notes: tire.notes || "",
+      });
+      setCurrentTire(tire);
+      setIsAddDialogOpen(false);
+      setIsEditDialogOpen(true);
+      setIsDeleteDialogOpen(false);
     }
   };
 
-  const openEditDialog = (tire: Tire) => {
-    setCurrentTire(tire);
-    setFormData({
-      serial_number: tire.serialNumber,
-      brand: tire.brand,
-      model: tire.model,
-      size: tire.size,
-      type: tire.type,
-      vehicle_id: tire.vehicle_id,
-      purchase_date: new Date(tire.purchaseDate).toISOString().split('T')[0],
-      purchase_price: tire.purchasePrice,
-      supplier: tire.supplier,
-      status: tire.status,
-      tread_depth: tire.treadDepth,
-      mileage: tire.mileage,
-      notes: tire.notes || ""
-    });
-    setIsEditDialogOpen(true);
-  };
-
-  const openDeleteDialog = (tire: Tire) => {
-    setCurrentTire(tire);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      serial_number: "",
-      brand: "",
-      model: "",
-      size: "",
-      type: "new",
-      vehicle_id: null,
-      purchase_date: new Date().toISOString().split('T')[0],
-      purchase_price: 0,
-      supplier: "",
-      status: "active",
-      tread_depth: 10,
-      mileage: 0,
-      notes: ""
-    });
-    setCurrentTire(null);
-  };
-
-  const closeAddDialog = () => {
+  const closeDialog = () => {
     setIsAddDialogOpen(false);
-    resetForm();
-  };
-
-  const closeEditDialog = () => {
     setIsEditDialogOpen(false);
+<<<<<<< HEAD
     resetForm();
   };
 
@@ -555,11 +441,16 @@ const TireManagement = () => {
     if (!id) return '-';
     const vehicle = vehicles.find(v => v.id === id);
     return vehicle ? `${vehicle.registrationNumber} (${vehicle.brand} ${vehicle.model})` : '-';
+=======
+    setIsDeleteDialogOpen(false);
+    setCurrentTire(null);
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
+<<<<<<< HEAD
         <div className="flex items-center gap-4">
           <div className="flex gap-4 w-2/3">
             <Input
@@ -590,11 +481,19 @@ const TireManagement = () => {
               ลบรายการที่เลือก ({selectedIds.length})
             </Button>
           )}
+=======
+        <div className="w-1/3">
+          <Input
+            placeholder="ค้นหาตาม Serial, ยี่ห้อ หรือ รุ่น..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
         </div>
         <div className="flex gap-2">
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => openDialog("add")}>
                 <Plus className="h-4 w-4 mr-2" />
                 เพิ่มยางใหม่
               </Button>
@@ -607,213 +506,181 @@ const TireManagement = () => {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="serial_number">ซีเรียลนัมเบอร์</Label>
-                      <Input 
-                        id="serial_number" 
-                        name="serial_number"
-                        value={formData.serial_number}
-                        onChange={handleChange}
-                        placeholder="เช่น BDG2021060001" 
+                      <Label htmlFor="serialNumber">Serial Number</Label>
+                      <Input
+                        id="serialNumber"
+                        value={formData.serialNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, serialNumber: e.target.value })
+                        }
+                        placeholder="เช่น ABC123456"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="brand">ยี่ห้อ</Label>
+                      <Input
+                        id="brand"
+                        value={formData.brand}
+                        onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                        placeholder="เช่น Michelin"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="model">รุ่น</Label>
+                      <Input
+                        id="model"
+                        value={formData.model}
+                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                        placeholder="เช่น Pilot Sport 4"
                         required
                       />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="size">ขนาด</Label>
-                      <Input 
-                        id="size" 
-                        name="size"
+                      <Input
+                        id="size"
                         value={formData.size}
-                        onChange={handleChange}
-                        placeholder="เช่น 11R22.5" 
+                        onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                        placeholder="เช่น 225/45R17"
                         required
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="brand">ยี่ห้อ</Label>
-                      <Input 
-                        id="brand" 
-                        name="brand"
-                        value={formData.brand}
-                        onChange={handleChange}
-                        placeholder="เช่น Bridgestone" 
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="model">รุ่น</Label>
-                      <Input 
-                        id="model" 
-                        name="model"
-                        value={formData.model}
-                        onChange={handleChange}
-                        placeholder="เช่น R150" 
-                        required
-                      />
-                    </div>
-                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="type">ประเภท</Label>
-                      <Select value={formData.type} onValueChange={(v) => handleSelectChange('type', v)}>
-                        <SelectTrigger id="type">
-                          <SelectValue placeholder="เลือกประเภท" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="new">ยางใหม่</SelectItem>
-                          <SelectItem value="retreaded">ยางหล่อดอก</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="tread_depth">ความลึกดอกยาง (มม.)</Label>
-                      <Input 
-                        id="tread_depth" 
-                        name="tread_depth"
-                        type="number" 
-                        step="0.1" 
-                        value={formData.tread_depth || ""}
-                        onChange={handleChange}
-                        placeholder="เช่น 12.5" 
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="purchase_date">วันที่ซื้อ</Label>
-                      <Input 
-                        id="purchase_date" 
-                        name="purchase_date"
-                        type="date" 
-                        value={formData.purchase_date}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="purchase_price">ราคาซื้อ (บาท)</Label>
-                      <Input 
-                        id="purchase_price" 
-                        name="purchase_price"
-                        type="number" 
-                        value={formData.purchase_price || ""}
-                        onChange={handleChange}
-                        placeholder="เช่น 8500" 
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="supplier">ผู้จำหน่าย</Label>
-                      <Input 
-                        id="supplier" 
-                        name="supplier"
-                        value={formData.supplier}
-                        onChange={handleChange}
-                        placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" 
-                        required
-                      />
+                      <select
+                        id="type"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value as "new" | "retreaded" })}
+                      >
+                        <option value="new">ใหม่</option>
+                        <option value="retreaded">หล่อดอก</option>
+                      </select>
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="status">สถานะ</Label>
-                      <Select value={formData.status} onValueChange={(v) => handleSelectChange('status', v)}>
-                        <SelectTrigger id="status">
-                          <SelectValue placeholder="เลือกสถานะ" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">ใช้งาน</SelectItem>
-                          <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
-                          <SelectItem value="retreading">หล่อดอก</SelectItem>
-                          <SelectItem value="expired">หมดอายุ</SelectItem>
-                          <SelectItem value="sold">ขายแล้ว</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <select
+                        id="status"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value as "active" | "maintenance" | "retreading" | "expired" | "sold" })
+                        }
+                      >
+                        <option value="active">ใช้งาน</option>
+                        <option value="maintenance">ซ่อมบำรุง</option>
+                        <option value="retreading">หล่อดอก</option>
+                        <option value="expired">หมดอายุ</option>
+                        <option value="sold">ขายแล้ว</option>
+                      </select>
                     </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="vehicle_id">ยานพาหนะที่ติดตั้ง</Label>
-                    <Select 
-                      value={formData.vehicle_id || "none"} 
-                      onValueChange={(v) => handleSelectChange('vehicle_id', v === "none" ? "" : v)}
-                    >
-                      <SelectTrigger id="vehicle_id">
-                        <SelectValue placeholder="เลือกยานพาหนะ (หากมี)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">ไม่มีการติดตั้ง</SelectItem>
-                        {vehicles.map(vehicle => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="mileage">ระยะทางที่ใช้งาน (กม.)</Label>
-                      <Input 
-                        id="mileage" 
-                        name="mileage"
-                        type="number" 
-                        value={formData.mileage || ""}
-                        onChange={handleChange}
-                        placeholder="เช่น 10000" 
-                        required
+                      <Label htmlFor="purchaseDate">วันที่ซื้อ</Label>
+                      <Input
+                        type="date"
+                        id="purchaseDate"
+                        value={formData.purchaseDate}
+                        onChange={(e) =>
+                          setFormData({ ...formData, purchaseDate: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="purchasePrice">ราคาซื้อ</Label>
+                      <Input
+                        type="number"
+                        id="purchasePrice"
+                        value={formData.purchasePrice}
+                        onChange={(e) =>
+                          setFormData({ ...formData, purchasePrice: parseFloat(e.target.value) })
+                        }
+                        placeholder="เช่น 2500"
                       />
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="treadDepth">ความลึกดอกยาง (มม.)</Label>
+                      <Input
+                        type="number"
+                        id="treadDepth"
+                        value={formData.treadDepth}
+                        onChange={(e) =>
+                          setFormData({ ...formData, treadDepth: parseFloat(e.target.value) })
+                        }
+                        placeholder="เช่น 8"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="mileage">ระยะทางใช้งาน (กม.)</Label>
+                      <Input
+                        type="number"
+                        id="mileage"
+                        value={formData.mileage}
+                        onChange={(e) =>
+                          setFormData({ ...formData, mileage: parseFloat(e.target.value) })
+                        }
+                        placeholder="เช่น 10000"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="supplier">ผู้จัดจำหน่าย</Label>
+                    <Input
+                      id="supplier"
+                      value={formData.supplier}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                      placeholder="เช่น บ. ABC จำกัด"
+                    />
+                  </div>
+
                   <div className="grid gap-2">
                     <Label htmlFor="notes">หมายเหตุ</Label>
-                    <Textarea 
-                      id="notes" 
-                      name="notes"
+                    <Textarea
+                      id="notes"
                       value={formData.notes}
-                      onChange={handleChange}
-                      placeholder="รายละเอียดเพิ่มเติม..." 
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="รายละเอียดเพิ่มเติม..."
                     />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={closeAddDialog}>
+                  <Button type="button" variant="outline" onClick={closeDialog}>
                     ยกเลิก
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        กำลังบันทึก...
-                      </>
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />กำลังบันทึก...</>
                     ) : (
-                      'บันทึก'
+                      "บันทึก"
                     )}
                   </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            นำเข้าข้อมูล
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx"
-            style={{ display: "none" }}
-            onChange={handleImportFile}
-          />
-          <Button
-            variant="secondary"
-            onClick={handleExportTemplate}
-          >
-            ดาวน์โหลดแม่แบบ
-          </Button>
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              ลบที่เลือก ({selectedIds.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -832,6 +699,7 @@ const TireManagement = () => {
                 <TableRow>
                   <TableHead className="w-[50px]">
                     <Checkbox
+<<<<<<< HEAD
                       checked={selectedIds.length === filteredTires.length && filteredTires.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
@@ -842,12 +710,26 @@ const TireManagement = () => {
                   <TableHead>ยานพาหนะ</TableHead>
                   <TableHead>ความลึกดอกยาง</TableHead>
                   <TableHead>สถานะดอกยาง</TableHead>
+=======
+                      checked={selectedIds.size === filteredTires.length && filteredTires.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Serial Number</TableHead>
+                  <TableHead>ยี่ห้อ</TableHead>
+                  <TableHead>รุ่น</TableHead>
+                  <TableHead>ขนาด</TableHead>
+                  <TableHead>ประเภท</TableHead>
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
                   <TableHead>สถานะ</TableHead>
+                  <TableHead>ความลึกดอกยาง (มม.)</TableHead>
+                  <TableHead>ระยะทางใช้งาน (กม.)</TableHead>
                   <TableHead className="text-right">การดำเนินการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTires.length > 0 ? (
+<<<<<<< HEAD
                   filteredTires.map((tire) => {
                     const treadStatus = getTreadDepthStatus(tire.treadDepth);
                     return (
@@ -890,6 +772,40 @@ const TireManagement = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={9} className="h-24 text-center">
+=======
+                  filteredTires.map((tire) => (
+                    <TableRow key={tire.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(tire.id)}
+                          onCheckedChange={() => toggleSelection(tire.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{tire.serialNumber}</TableCell>
+                      <TableCell>{tire.brand}</TableCell>
+                      <TableCell>{tire.model}</TableCell>
+                      <TableCell>{tire.size}</TableCell>
+                      <TableCell>{tire.type}</TableCell>
+                      <TableCell>{tire.status}</TableCell>
+                      <TableCell>{tire.treadDepth}</TableCell>
+                      <TableCell>{tire.mileage}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openDialog("edit", tire)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-24 text-center">
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
                       ไม่พบข้อมูลยาง
                     </TableCell>
                   </TableRow>
@@ -900,7 +816,8 @@ const TireManagement = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>แก้ไขข้อมูลยาง</DialogTitle>
@@ -909,194 +826,173 @@ const TireManagement = () => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_serial_number">ซีเรียลนัมเบอร์</Label>
-                  <Input 
-                    id="edit_serial_number" 
-                    name="serial_number"
-                    value={formData.serial_number}
-                    onChange={handleChange}
-                    placeholder="เช่น BDG2021060001" 
+                  <Label htmlFor="serialNumber">Serial Number</Label>
+                  <Input
+                    id="serialNumber"
+                    value={formData.serialNumber}
+                    onChange={(e) =>
+                      setFormData({ ...formData, serialNumber: e.target.value })
+                    }
+                    placeholder="เช่น ABC123456"
                     required
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_size">ขนาด</Label>
-                  <Input 
-                    id="edit_size" 
-                    name="size"
-                    value={formData.size}
-                    onChange={handleChange}
-                    placeholder="เช่น 11R22.5" 
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit_brand">ยี่ห้อ</Label>
-                  <Input 
-                    id="edit_brand" 
-                    name="brand"
+                  <Label htmlFor="brand">ยี่ห้อ</Label>
+                  <Input
+                    id="brand"
                     value={formData.brand}
-                    onChange={handleChange}
-                    placeholder="เช่น Bridgestone" 
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    placeholder="เช่น Michelin"
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_model">รุ่น</Label>
-                  <Input 
-                    id="edit_model" 
-                    name="model"
+                  <Label htmlFor="model">รุ่น</Label>
+                  <Input
+                    id="model"
                     value={formData.model}
-                    onChange={handleChange}
-                    placeholder="เช่น R150" 
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    placeholder="เช่น Pilot Sport 4"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="size">ขนาด</Label>
+                  <Input
+                    id="size"
+                    value={formData.size}
+                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                    placeholder="เช่น 225/45R17"
                     required
                   />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_type">ประเภท</Label>
-                  <Select value={formData.type} onValueChange={(v) => handleSelectChange('type', v)}>
-                    <SelectTrigger id="edit_type">
-                      <SelectValue placeholder="เลือกประเภท" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">ยางใหม่</SelectItem>
-                      <SelectItem value="retreaded">ยางหล่อดอก</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="type">ประเภท</Label>
+                  <select
+                    id="type"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as "new" | "retreaded" })}
+                  >
+                    <option value="new">ใหม่</option>
+                    <option value="retreaded">หล่อดอก</option>
+                  </select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_tread_depth">ความลึกดอกยาง (มม.)</Label>
-                  <Input 
-                    id="edit_tread_depth" 
-                    name="tread_depth"
-                    type="number" 
-                    step="0.1" 
-                    value={formData.tread_depth || ""}
-                    onChange={handleChange}
-                    placeholder="เช่น 12.5" 
-                    required
-                  />
+                  <Label htmlFor="status">สถานะ</Label>
+                  <select
+                    id="status"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value as "active" | "maintenance" | "retreading" | "expired" | "sold" })
+                    }
+                  >
+                    <option value="active">ใช้งาน</option>
+                    <option value="maintenance">ซ่อมบำรุง</option>
+                    <option value="retreading">หล่อดอก</option>
+                    <option value="expired">หมดอายุ</option>
+                    <option value="sold">ขายแล้ว</option>
+                  </select>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_purchase_date">วันที่ซื้อ</Label>
-                  <Input 
-                    id="edit_purchase_date" 
-                    name="purchase_date"
-                    type="date" 
-                    value={formData.purchase_date}
-                    onChange={handleChange}
-                    required
+                  <Label htmlFor="purchaseDate">วันที่ซื้อ</Label>
+                  <Input
+                    type="date"
+                    id="purchaseDate"
+                    value={formData.purchaseDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, purchaseDate: e.target.value })
+                    }
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_purchase_price">ราคาซื้อ (บาท)</Label>
-                  <Input 
-                    id="edit_purchase_price" 
-                    name="purchase_price"
-                    type="number" 
-                    value={formData.purchase_price || ""}
-                    onChange={handleChange}
-                    placeholder="เช่น 8500" 
-                    required
+                  <Label htmlFor="purchasePrice">ราคาซื้อ</Label>
+                  <Input
+                    type="number"
+                    id="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={(e) =>
+                      setFormData({ ...formData, purchasePrice: parseFloat(e.target.value) })
+                    }
+                    placeholder="เช่น 2500"
                   />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_supplier">ผู้จำหน่าย</Label>
-                  <Input 
-                    id="edit_supplier" 
-                    name="supplier"
-                    value={formData.supplier}
-                    onChange={handleChange}
-                    placeholder="เช่น บริษัท ไทยบริดจสโตน จำกัด" 
-                    required
+                  <Label htmlFor="treadDepth">ความลึกดอกยาง (มม.)</Label>
+                  <Input
+                    type="number"
+                    id="treadDepth"
+                    value={formData.treadDepth}
+                    onChange={(e) =>
+                      setFormData({ ...formData, treadDepth: parseFloat(e.target.value) })
+                    }
+                    placeholder="เช่น 8"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit_status">สถานะ</Label>
-                  <Select value={formData.status} onValueChange={(v) => handleSelectChange('status', v)}>
-                    <SelectTrigger id="edit_status">
-                      <SelectValue placeholder="เลือกสถานะ" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">ใช้งาน</SelectItem>
-                      <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
-                      <SelectItem value="retreading">หล่อดอก</SelectItem>
-                      <SelectItem value="expired">หมดอายุ</SelectItem>
-                      <SelectItem value="sold">ขายแล้ว</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="mileage">ระยะทางใช้งาน (กม.)</Label>
+                  <Input
+                    type="number"
+                    id="mileage"
+                    value={formData.mileage}
+                    onChange={(e) =>
+                      setFormData({ ...formData, mileage: parseFloat(e.target.value) })
+                    }
+                    placeholder="เช่น 10000"
+                  />
                 </div>
               </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="edit_vehicle_id">ยานพาหนะที่ติดตั้ง</Label>
-                <Select 
-                  value={formData.vehicle_id || "none"} 
-                  onValueChange={(v) => handleSelectChange('vehicle_id', v === "none" ? "" : v)}
-                >
-                  <SelectTrigger id="edit_vehicle_id">
-                    <SelectValue placeholder="เลือกยานพาหนะ (หากมี)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">ไม่มีการติดตั้ง</SelectItem>
-                    {vehicles.map(vehicle => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="supplier">ผู้จัดจำหน่าย</Label>
+                <Input
+                  id="supplier"
+                  value={formData.supplier}
+                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                  placeholder="เช่น บ. ABC จำกัด"
+                />
               </div>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit_mileage">ระยะทางที่ใช้งาน (กม.)</Label>
-                  <Input 
-                    id="edit_mileage" 
-                    name="mileage"
-                    type="number" 
-                    value={formData.mileage || ""}
-                    onChange={handleChange}
-                    placeholder="เช่น 10000" 
-                    required
-                  />
-                </div>
-              </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="edit_notes">หมายเหตุ</Label>
-                <Textarea 
-                  id="edit_notes" 
-                  name="notes"
+                <Label htmlFor="notes">หมายเหตุ</Label>
+                <Textarea
+                  id="notes"
                   value={formData.notes}
-                  onChange={handleChange}
-                  placeholder="รายละเอียดเพิ่มเติม..." 
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="รายละเอียดเพิ่มเติม..."
                 />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeEditDialog}>
+              <Button type="button" variant="outline" onClick={closeDialog}>
                 ยกเลิก
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    กำลังบันทึก...
-                  </>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />กำลังบันทึก...</>
                 ) : (
-                  'บันทึก'
+                  "บันทึก"
                 )}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+<<<<<<< HEAD
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -1153,6 +1049,8 @@ const TireManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+=======
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
     </div>
   );
 };

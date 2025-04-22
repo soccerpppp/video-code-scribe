@@ -12,6 +12,10 @@ import { toast } from "@/components/ui/use-toast";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { Checkbox } from "@/components/ui/checkbox";
+<<<<<<< HEAD
+=======
+import { useMultiSelect } from "@/hooks/useMultiSelect";
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
 
 interface Vehicle {
   id: string;
@@ -74,6 +78,7 @@ const VehicleManagement = () => {
   const [formData, setFormData] = useState({ ...emptyForm });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { selectedIds, handleSelectAll, toggleSelection, clearSelection } = useMultiSelect(vehicles);
 
   const fetchVehicles = async () => {
     setIsLoading(true);
@@ -141,6 +146,7 @@ const VehicleManagement = () => {
     }
   };
 
+<<<<<<< HEAD
   const handleDelete = async (ids: string[]) => {
     setIsSubmitting(true);
     try {
@@ -164,6 +170,32 @@ const VehicleManagement = () => {
       });
     } finally {
       setIsSubmitting(false);
+=======
+  const handleDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast({
+        title: "ลบสำเร็จ",
+        description: `ลบข้อมูลรถ ${selectedIds.size} คันเรียบร้อยแล้ว`
+      });
+
+      clearSelection();
+      fetchVehicles();
+    } catch (error: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.message,
+        variant: "destructive"
+      });
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
     }
   };
 
@@ -435,8 +467,13 @@ const VehicleManagement = () => {
                 <TableRow>
                   <TableHead className="w-[50px]">
                     <Checkbox
+<<<<<<< HEAD
                       checked={selectedIds.length === filteredVehicles.length && filteredVehicles.length > 0}
                       onCheckedChange={toggleSelectAll}
+=======
+                      checked={selectedIds.size === filteredVehicles.length && filteredVehicles.length > 0}
+                      onCheckedChange={handleSelectAll}
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
                     />
                   </TableHead>
                   <TableHead>ทะเบียนรถ</TableHead>
@@ -453,12 +490,17 @@ const VehicleManagement = () => {
               </TableHeader>
               <TableBody>
                 {filteredVehicles.length > 0 ? (
-                  filteredVehicles.map(vehicle => (
+                  filteredVehicles.map((vehicle) => (
                     <TableRow key={vehicle.id}>
                       <TableCell>
                         <Checkbox
+<<<<<<< HEAD
                           checked={selectedIds.includes(vehicle.id)}
                           onCheckedChange={() => toggleSelect(vehicle.id)}
+=======
+                          checked={selectedIds.has(vehicle.id)}
+                          onCheckedChange={() => toggleSelection(vehicle.id)}
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
                         />
                       </TableCell>
                       <TableCell className="font-medium">{vehicle.registration_number}</TableCell>
