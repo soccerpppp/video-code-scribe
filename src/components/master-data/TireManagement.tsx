@@ -27,11 +27,12 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TireFromDB {
   id: string;
@@ -108,6 +109,8 @@ const TireManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentTire, setCurrentTire] = useState<Tire | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [dialog, setDialog] = useState<"add" | "edit" | "delete" | "bulkDelete" | null>(null);
 
   const [formData, setFormData] = useState({
     serial_number: "",
@@ -256,6 +259,28 @@ const TireManagement = () => {
     }
   };
 
+  const getTreadDepthStatus = (depth: number) => {
+    if (depth < 3) {
+      return {
+        icon: <XCircle className="h-4 w-4 text-red-500" />,
+        text: "อันตราย ต้องเปลี่ยนยางทันที",
+        color: "text-red-500"
+      };
+    } else if (depth >= 3 && depth <= 5) {
+      return {
+        icon: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
+        text: "เปลี่ยนยางก่อนเอารถออกใช้งาน",
+        color: "text-yellow-500"
+      };
+    } else {
+      return {
+        icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
+        text: "ใช้งานได้",
+        color: "text-green-500"
+      };
+    }
+  };
+
   const filteredTires = tires.filter(tire => {
     const matchesSearch = 
       tire.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -360,26 +385,22 @@ const TireManagement = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!currentTire) return;
+  const handleDelete = async (ids: string[]) => {
     setIsSubmitting(true);
     try {
-      // อัปเดต activity_logs ที่อ้างถึงยางนี้ให้ tire_id = null ก่อน
-      await supabase.from('activity_logs').update({ tire_id: null }).eq('tire_id', currentTire.id);
+      // อัปเดต tire_activity_logs ที่อ้างถึงยางเหล่านี้ให้ tire_id = null ก่อน
+      await supabase.from('tire_activity_logs').update({ tire_id: null }).in('tire_id', ids);
       // แล้วค่อยลบยาง
-      const { error } = await supabase
-        .from('tires')
-        .delete()
-        .eq('id', currentTire.id);
+      const { error } = await supabase.from('tires').delete().in('id', ids);
       if (error) throw error;
       toast({
         title: "ลบสำเร็จ",
-        description: "ลบข้อมูลยางเรียบร้อยแล้ว",
+        description: `ลบข้อมูลยาง ${ids.length} รายการเรียบร้อยแล้ว`,
       });
       fetchData();
-      setIsDeleteDialogOpen(false);
+      setSelectedIds([]);
+      closeDialog();
     } catch (error: any) {
-      console.error("Error deleting tire:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: error.message || "ไม่สามารถลบข้อมูลได้",
@@ -512,6 +533,24 @@ const TireManagement = () => {
     resetForm();
   };
 
+  const closeDialog = () => {
+    setDialog(null);
+    setCurrentTire(null);
+    resetForm();
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => 
+      prev.length === filteredTires.length ? [] : filteredTires.map(t => t.id)
+    );
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const getVehicleName = (id: string | null) => {
     if (!id) return '-';
     const vehicle = vehicles.find(v => v.id === id);
@@ -521,29 +560,36 @@ const TireManagement = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-4 w-2/3">
-          <Input
-            className="w-1/2"
-            placeholder="ค้นหาตามซีเรียล ยี่ห้อ หรือรุ่น..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select 
-            value={filterStatus} 
-            onValueChange={setFilterStatus}
-          >
-            <SelectTrigger className="w-1/3">
-              <SelectValue placeholder="สถานะทั้งหมด" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">สถานะทั้งหมด</SelectItem>
-              <SelectItem value="active">ใช้งาน</SelectItem>
-              <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
-              <SelectItem value="retreading">หล่อดอก</SelectItem>
-              <SelectItem value="expired">หมดอายุ</SelectItem>
-              <SelectItem value="sold">ขายแล้ว</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-4 w-2/3">
+            <Input
+              className="w-1/2"
+              placeholder="ค้นหาตามซีเรียล ยี่ห้อ หรือรุ่น..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-1/3">
+                <SelectValue placeholder="สถานะทั้งหมด" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">สถานะทั้งหมด</SelectItem>
+                <SelectItem value="active">ใช้งาน</SelectItem>
+                <SelectItem value="maintenance">ซ่อมบำรุง</SelectItem>
+                <SelectItem value="retreading">หล่อดอก</SelectItem>
+                <SelectItem value="expired">หมดอายุ</SelectItem>
+                <SelectItem value="sold">ขายแล้ว</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setDialog("bulkDelete")}
+            >
+              ลบรายการที่เลือก ({selectedIds.length})
+            </Button>
+          )}
         </div>
         <div className="flex gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -784,44 +830,66 @@ const TireManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedIds.length === filteredTires.length && filteredTires.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>ซีเรียลนัมเบอร์</TableHead>
                   <TableHead>ยี่ห้อ/รุ่น</TableHead>
                   <TableHead>ขนาด</TableHead>
                   <TableHead>ยานพาหนะ</TableHead>
                   <TableHead>ความลึกดอกยาง</TableHead>
+                  <TableHead>สถานะดอกยาง</TableHead>
                   <TableHead>สถานะ</TableHead>
                   <TableHead className="text-right">การดำเนินการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTires.length > 0 ? (
-                  filteredTires.map((tire) => (
-                    <TableRow key={tire.id}>
-                      <TableCell className="font-medium">{tire.serialNumber}</TableCell>
-                      <TableCell>{tire.brand} {tire.model}</TableCell>
-                      <TableCell>{tire.size}</TableCell>
-                      <TableCell>{getVehicleName(tire.vehicle_id)}</TableCell>
-                      <TableCell>{tire.treadDepth} มม.</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(tire.status)}>
-                          {getStatusText(tire.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="icon" onClick={() => openEditDialog(tire)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="icon" onClick={() => openDeleteDialog(tire)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredTires.map((tire) => {
+                    const treadStatus = getTreadDepthStatus(tire.treadDepth);
+                    return (
+                      <TableRow key={tire.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.includes(tire.id)}
+                            onCheckedChange={() => toggleSelect(tire.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{tire.serialNumber}</TableCell>
+                        <TableCell>{tire.brand} {tire.model}</TableCell>
+                        <TableCell>{tire.size}</TableCell>
+                        <TableCell>{getVehicleName(tire.vehicle_id)}</TableCell>
+                        <TableCell>{tire.treadDepth} มม.</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {treadStatus.icon}
+                            <span className={treadStatus.color}>{treadStatus.text}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(tire.status)}>
+                            {getStatusText(tire.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="icon" onClick={() => openEditDialog(tire)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => openDeleteDialog(tire)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={9} className="h-24 text-center">
                       ไม่พบข้อมูลยาง
                     </TableCell>
                   </TableRow>
@@ -1043,7 +1111,36 @@ const TireManagement = () => {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               ยกเลิก
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+            <Button variant="destructive" onClick={() => handleDelete([currentTire?.id || ""])} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังลบ...
+                </>
+              ) : (
+                'ลบ'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialog === "bulkDelete"} onOpenChange={v => !v && closeDialog()}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>ยืนยันการลบข้อมูล</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>คุณต้องการลบข้อมูลยางที่เลือก {selectedIds.length} รายการ ใช่หรือไม่?</p>
+            <p className="text-sm text-red-500 mt-2">การดำเนินการนี้ไม่สามารถเรียกคืนได้</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={closeDialog}>ยกเลิก</Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleDelete(selectedIds)}
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
