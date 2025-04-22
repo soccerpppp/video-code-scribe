@@ -12,7 +12,10 @@ import { toast } from "@/components/ui/use-toast";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { Checkbox } from "@/components/ui/checkbox";
+<<<<<<< HEAD
+=======
 import { useMultiSelect } from "@/hooks/useMultiSelect";
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
 
 interface Vehicle {
   id: string;
@@ -69,10 +72,11 @@ const VehicleManagement = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dialog, setDialog] = useState<"add" | "edit" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"add" | "edit" | "delete" | "bulkDelete" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentVehicle, setCurrentVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({ ...emptyForm });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { selectedIds, handleSelectAll, toggleSelection, clearSelection } = useMultiSelect(vehicles);
 
@@ -142,6 +146,31 @@ const VehicleManagement = () => {
     }
   };
 
+<<<<<<< HEAD
+  const handleDelete = async (ids: string[]) => {
+    setIsSubmitting(true);
+    try {
+      // อัปเดต tire_activity_logs ที่อ้างถึงรถเหล่านี้ให้ vehicle_id = null ก่อน
+      await supabase.from('tire_activity_logs').update({ vehicle_id: null }).in('vehicle_id', ids);
+      await supabase.from('activity_logs').update({ vehicle_id: null }).in('vehicle_id', ids);
+      const { error } = await supabase.from('vehicles').delete().in('id', ids);
+      if (error) throw error;
+      toast({ 
+        title: "ลบสำเร็จ", 
+        description: `ลบข้อมูลรถ ${ids.length} รายการเรียบร้อยแล้ว` 
+      });
+      fetchVehicles();
+      setSelectedIds([]);
+      closeDialog();
+    } catch (error: any) {
+      toast({ 
+        title: "เกิดข้อผิดพลาด", 
+        description: error.message || "ไม่สามารถลบข้อมูลได้", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSubmitting(false);
+=======
   const handleDelete = async () => {
     if (selectedIds.size === 0) return;
     
@@ -166,6 +195,7 @@ const VehicleManagement = () => {
         description: error.message,
         variant: "destructive"
       });
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
     }
   };
 
@@ -269,7 +299,7 @@ const VehicleManagement = () => {
     XLSX.writeFile(wb, "vehicle_import_template.xlsx");
   };
 
-  const openDialog = (type: "add" | "edit" | "delete", vehicle?: Vehicle) => {
+  const openDialog = (type: "add" | "edit" | "delete" | "bulkDelete", vehicle?: Vehicle) => {
     setDialog(type);
     if (type === "edit" && vehicle) {
       setCurrentVehicle(vehicle);
@@ -298,6 +328,18 @@ const VehicleManagement = () => {
     setDialog(null);
     setFormData({ ...emptyForm });
     setCurrentVehicle(null);
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => 
+      prev.length === filteredVehicles.length ? [] : filteredVehicles.map(v => v.id)
+    );
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const renderFormDialog = (
@@ -362,12 +404,22 @@ const VehicleManagement = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <div className="w-1/3">
-          <Input
-            placeholder="ค้นหาตามทะเบียน ประเภท หรือ ยี่ห้อ..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+        <div className="flex items-center gap-4">
+          <div className="w-1/3">
+            <Input
+              placeholder="ค้นหาตามทะเบียน ประเภท หรือ ยี่ห้อ..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          {selectedIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setDialog("bulkDelete")}
+            >
+              ลบรายการที่เลือก ({selectedIds.length})
+            </Button>
+          )}
         </div>
         <div className="flex gap-2">
           <Dialog open={dialog === "add"} onOpenChange={v => v ? openDialog("add") : closeDialog()}>
@@ -415,8 +467,13 @@ const VehicleManagement = () => {
                 <TableRow>
                   <TableHead className="w-[50px]">
                     <Checkbox
+<<<<<<< HEAD
+                      checked={selectedIds.length === filteredVehicles.length && filteredVehicles.length > 0}
+                      onCheckedChange={toggleSelectAll}
+=======
                       checked={selectedIds.size === filteredVehicles.length && filteredVehicles.length > 0}
                       onCheckedChange={handleSelectAll}
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
                     />
                   </TableHead>
                   <TableHead>ทะเบียนรถ</TableHead>
@@ -437,8 +494,13 @@ const VehicleManagement = () => {
                     <TableRow key={vehicle.id}>
                       <TableCell>
                         <Checkbox
+<<<<<<< HEAD
+                          checked={selectedIds.includes(vehicle.id)}
+                          onCheckedChange={() => toggleSelect(vehicle.id)}
+=======
                           checked={selectedIds.has(vehicle.id)}
                           onCheckedChange={() => toggleSelection(vehicle.id)}
+>>>>>>> a564af6e4d37948a4601d43337a16d5949a30e85
                         />
                       </TableCell>
                       <TableCell className="font-medium">{vehicle.registration_number}</TableCell>
@@ -464,7 +526,7 @@ const VehicleManagement = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-24 text-center">
+                    <TableCell colSpan={11} className="h-24 text-center">
                       ไม่พบข้อมูลรถ
                     </TableCell>
                   </TableRow>
@@ -485,8 +547,36 @@ const VehicleManagement = () => {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>ยกเลิก</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+            <Button variant="destructive" onClick={() => handleDelete([currentVehicle?.id || ""])} disabled={isSubmitting}>
               {isSubmitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />กำลังลบ...</>) : 'ลบ'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={dialog === "bulkDelete"} onOpenChange={v => !v && closeDialog()}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>ยืนยันการลบข้อมูล</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>คุณต้องการลบข้อมูลรถที่เลือก {selectedIds.length} รายการ ใช่หรือไม่?</p>
+            <p className="text-sm text-red-500 mt-2">การดำเนินการนี้ไม่สามารถเรียกคืนได้</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={closeDialog}>ยกเลิก</Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleDelete(selectedIds)}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังลบ...
+                </>
+              ) : (
+                'ลบ'
+              )}
             </Button>
           </div>
         </DialogContent>

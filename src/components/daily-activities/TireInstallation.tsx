@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -37,7 +36,37 @@ import {
 } from "@/components/ui/table";
 import { Check, X, Save } from "lucide-react";
 import { toast } from "sonner";
-import { Vehicle, Tire } from "@/types/models";
+import { supabase } from "@/integrations/supabase/client";
+
+// ปรับปรุง interface ให้ตรงกับ database
+interface TireFromDB {
+  id: string;
+  serial_number: string;
+  brand: string;
+  model: string;
+  size: string;
+  type: string;
+  position: string | null;
+  vehicle_id: string | null;
+  purchase_date: string;
+  purchase_price: number;
+  supplier: string;
+  status: string;
+  tread_depth: number;
+  mileage: number;
+  notes?: string;
+}
+
+interface VehicleFromDB {
+  id: string;
+  registration_number: string;
+  brand: string;
+  model: string;
+  type: string;
+  wheel_positions: number;
+  current_mileage: number;
+  notes?: string;
+}
 
 const TireInstallation = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<string>("");
@@ -46,111 +75,44 @@ const TireInstallation = () => {
   const [installationType, setInstallationType] = useState<"new" | "replace">("new");
   const [mileage, setMileage] = useState<string>("");
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [availableTires, setAvailableTires] = useState<Tire[]>([]);
+  const [availableTires, setAvailableTires] = useState<TireFromDB[]>([]);
   const [installedTires, setInstalledTires] = useState<{position: string, tireId: string, serialNumber: string}[]>([]);
-  
-  // ตัวอย่างข้อมูลรถ
-  const vehicles: Vehicle[] = [
-    {
-      id: "1",
-      registrationNumber: "70-8001",
-      type: "รถบรรทุก 10 ล้อ",
-      brand: "HINO",
-      model: "FM8J",
-      wheelPositions: 10,
-      currentMileage: 45000,
-      tirePositions: [
-        { position: "หน้าซ้าย", tireId: "T001" },
-        { position: "หน้าขวา", tireId: "T002" },
-        { position: "หลังซ้ายนอก (1)", tireId: "T003" },
-        { position: "หลังซ้ายใน (1)", tireId: "T004" },
-        { position: "หลังขวานอก (1)", tireId: "T005" },
-        { position: "หลังขวาใน (1)", tireId: "T006" },
-        { position: "หลังซ้ายนอก (2)", tireId: "T007" },
-        { position: "หลังซ้ายใน (2)", tireId: "T008" },
-        { position: "หลังขวานอก (2)", tireId: "T009" },
-        { position: "หลังขวาใน (2)", tireId: "T010" },
-      ],
-      notes: "รถกระบะพื้นเรียบ"
-    },
-    {
-      id: "2",
-      registrationNumber: "70-7520",
-      type: "รถบรรทุก 6 ล้อ",
-      brand: "ISUZU",
-      model: "FTR",
-      wheelPositions: 6,
-      currentMileage: 32000,
-      tirePositions: [
-        { position: "หน้าซ้าย", tireId: "T011" },
-        { position: "หน้าขวา", tireId: "T012" },
-        { position: "หลังซ้ายนอก", tireId: "T013" },
-        { position: "หลังซ้ายใน", tireId: "T014" },
-        { position: "หลังขวานอก", tireId: "T015" },
-        { position: "หลังขวาใน", tireId: "T016" },
-      ],
-      notes: "รถตู้ทึบ"
-    }
-  ];
+  const [vehicles, setVehicles] = useState<VehicleFromDB[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // ตัวอย่างข้อมูลยาง
-  const tires: Tire[] = [
-    {
-      id: "T001",
-      serialNumber: "BDG2021060001",
-      brand: "Bridgestone",
-      model: "R150",
-      size: "11R22.5",
-      type: "new",
-      position: "หน้าซ้าย",
-      vehicleId: "1",
-      purchaseDate: "2023-01-15",
-      purchasePrice: 8500,
-      supplier: "บริษัท ไทยบริดจสโตน จำกัด",
-      status: "active",
-      treadDepth: 12.5,
-      mileage: 10000,
-      notes: "ยางใหม่ล่าสุด"
-    },
-    {
-      id: "T020",
-      serialNumber: "OTH2022050030",
-      brand: "Otani",
-      model: "OH-110",
-      size: "11R22.5",
-      type: "new",
-      vehicleId: undefined, // ยางที่ยังไม่ได้ติดตั้ง
-      purchaseDate: "2023-05-20",
-      purchasePrice: 5500,
-      supplier: "บริษัท โอตานิ จำกัด",
-      status: "active",
-      treadDepth: 13.0,
-      mileage: 0,
-      notes: "ยางใหม่ยังไม่ได้ติดตั้ง"
-    },
-    {
-      id: "T021",
-      serialNumber: "MCH2023070001",
-      brand: "Michelin",
-      model: "XZE2+",
-      size: "11R22.5",
-      type: "new",
-      vehicleId: undefined, // ยางที่ยังไม่ได้ติดตั้ง
-      purchaseDate: "2023-07-10",
-      purchasePrice: 9200,
-      supplier: "บริษัท สยามมิชลิน จำกัด",
-      status: "active",
-      treadDepth: 14.0,
-      mileage: 0,
-      notes: "ยางใหม่ยังไม่ได้ติดตั้ง"
-    }
-  ];
+  // ฟังก์ชันดึงข้อมูลรถและยางจาก database
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // ดึงข้อมูลรถ
+      const { data: vehiclesData, error: vehiclesError } = await supabase
+        .from('vehicles')
+        .select('*')
+        .order('registration_number');
+      
+      if (vehiclesError) throw vehiclesError;
+      setVehicles(vehiclesData || []);
 
-  // ฟังก์ชันสำหรับกรองยางที่ไม่ได้ติดตั้ง
+      // ดึงข้อมูลยางที่ยังไม่ได้ติดตั้ง (vehicle_id is null และ status = 'active')
+      const { data: tiresData, error: tiresError } = await supabase
+        .from('tires')
+        .select('*')
+        .is('vehicle_id', null)
+        .eq('status', 'active');
+
+      if (tiresError) throw tiresError;
+      setAvailableTires(tiresData || []);
+      
+    } catch (error: any) {
+      toast.error("ไม่สามารถดึงข้อมูลได้");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // กรองยางที่ยังไม่ได้ติดตั้ง (vehicleId เป็น undefined)
-    const uninstalledTires = tires.filter(tire => !tire.vehicleId);
-    setAvailableTires(uninstalledTires);
+    fetchData();
   }, []);
 
   // ฟังก์ชันสำหรับเลือกรถ
@@ -165,17 +127,16 @@ const TireInstallation = () => {
     // หารถที่เลือก
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (vehicle) {
-      setMileage(vehicle.currentMileage.toString());
+      setMileage(vehicle.current_mileage.toString());
       
       // สร้างรายการยางที่ติดตั้งอยู่แล้ว
-      const installedTiresList = vehicle.tirePositions.map(tp => {
-        const tire = tires.find(t => t.id === tp.tireId);
-        return {
-          position: tp.position,
-          tireId: tp.tireId || "",
-          serialNumber: tire ? tire.serialNumber : "ไม่มียาง"
-        };
-      });
+      const installedTiresList = availableTires
+        .filter(tire => tire.vehicle_id === vehicleId)
+        .map(tire => ({
+          position: tire.position || "",
+          tireId: tire.id,
+          serialNumber: tire.serial_number
+        }));
       setInstalledTires(installedTiresList);
     }
   };
@@ -190,63 +151,91 @@ const TireInstallation = () => {
     setSelectedTire(tireId);
   };
 
-  // ฟังก์ชันสำหรับเพิ่มยางในตำแหน่งที่เลือก
-  const handleInstallTire = () => {
+  // ฟังก์ชันสำหรับการติดตั้งยาง
+  const handleInstallTire = async () => {
     if (!selectedVehicle || !selectedPosition || !selectedTire || !mileage) {
       toast.error("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
 
-    // หารถและยางที่เลือก
-    const vehicle = vehicles.find(v => v.id === selectedVehicle);
-    const tire = availableTires.find(t => t.id === selectedTire);
+    try {
+      const updates = {
+        vehicle_id: selectedVehicle,
+        position: selectedPosition,
+        updated_at: new Date().toISOString(),
+        mileage: Number(mileage)
+      };
 
-    if (!vehicle || !tire) {
-      toast.error("ไม่พบข้อมูลรถหรือยาง");
-      return;
+      // อัปเดตข้อมูลยาง
+      const { error } = await supabase
+        .from('tires')
+        .update(updates)
+        .eq('id', selectedTire);
+
+      if (error) throw error;
+
+      // บันทึกประวัติการติดตั้ง
+      const { error: logError } = await supabase
+        .from('tire_activity_logs')
+        .insert({
+          date: date,
+          type: 'installation',
+          vehicle_id: selectedVehicle,
+          tire_id: selectedTire,
+          position: selectedPosition,
+          mileage: Number(mileage),
+          notes: `ติดตั้งในตำแหน่ง ${selectedPosition}`
+        });
+
+      if (logError) throw logError;
+
+      toast.success("ติดตั้งยางสำเร็จ");
+      
+      // รีเฟรชข้อมูล
+      fetchData();
+      
+      // รีเซ็ตค่า
+      setSelectedPosition("");
+      setSelectedTire("");
+
+    } catch (error: any) {
+      toast.error("ไม่สามารถติดตั้งยางได้");
+      console.error(error);
     }
-
-    // อัปเดตรายการยางที่ติดตั้ง
-    const updatedInstalledTires = [...installedTires];
-    const tireIndex = updatedInstalledTires.findIndex(t => t.position === selectedPosition);
-    
-    if (tireIndex !== -1) {
-      updatedInstalledTires[tireIndex].tireId = selectedTire;
-      updatedInstalledTires[tireIndex].serialNumber = tire.serialNumber;
-    }
-
-    setInstalledTires(updatedInstalledTires);
-    
-    // รีเซ็ตค่าหลังติดตั้ง
-    setSelectedPosition("");
-    setSelectedTire("");
-
-    toast.success(`ติดตั้งยาง ${tire.serialNumber} ในตำแหน่ง ${selectedPosition} สำเร็จ`);
   };
 
-  // ฟังก์ชันสำหรับบันทึกการติดตั้งยางทั้งหมด
-  const handleSaveAllInstallations = () => {
+  // ฟังก์ชันบันทึกการติดตั้งยางทั้งหมด
+  const handleSaveAllInstallations = async () => {
     if (!selectedVehicle || !mileage) {
       toast.error("กรุณาเลือกรถและระบุเลขไมล์");
       return;
     }
 
-    // ตรวจสอบว่ามีการติดตั้งยางหรือไม่
-    const hasInstalledTires = installedTires.some(tire => tire.tireId !== "");
-    
-    if (!hasInstalledTires) {
-      toast.error("ยังไม่มีการติดตั้งยาง");
-      return;
-    }
+    try {
+      // อัปเดตข้อมูลรถ
+      const { error: vehicleError } = await supabase
+        .from('vehicles')
+        .update({
+          current_mileage: Number(mileage),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedVehicle);
 
-    toast.success("บันทึกการติดตั้งยางสำเร็จ");
-    
-    // รีเซ็ตค่าหลังบันทึก
-    setSelectedVehicle("");
-    setInstalledTires([]);
-    setMileage("");
-    setSelectedPosition("");
-    setSelectedTire("");
+      if (vehicleError) throw vehicleError;
+
+      toast.success("บันทึกการติดตั้งยางสำเร็จ");
+      
+      // รีเซ็ตฟอร์ม
+      setSelectedVehicle("");
+      setInstalledTires([]);
+      setMileage("");
+      setSelectedPosition("");
+      setSelectedTire("");
+      
+    } catch (error: any) {
+      toast.error("ไม่สามารถบันทึกข้อมูลได้");
+      console.error(error);
+    }
   };
 
   // สร้างตำแหน่งล้อสำหรับการเลือก
@@ -256,9 +245,9 @@ const TireInstallation = () => {
     const vehicle = vehicles.find(v => v.id === selectedVehicle);
     if (!vehicle) return [];
     
-    return vehicle.tirePositions.map(tp => ({
-      value: tp.position,
-      label: tp.position
+    return installedTires.map(tire => ({
+      value: tire.position,
+      label: tire.position
     }));
   };
 
@@ -271,16 +260,16 @@ const TireInstallation = () => {
 
     // ตำแหน่งของล้อ (เรียงตามตำแหน่งจริงบนรถ)
     const positionGroups = {
-      front: vehicle.tirePositions.filter(tp => tp.position.includes("หน้า")),
-      rear1: vehicle.tirePositions.filter(tp => tp.position.includes("(1)")),
-      rear2: vehicle.tirePositions.filter(tp => tp.position.includes("(2)"))
+      front: installedTires.filter(tp => tp.position.includes("หน้า")),
+      rear1: installedTires.filter(tp => tp.position.includes("(1)")),
+      rear2: installedTires.filter(tp => tp.position.includes("(2)"))
     };
 
     // รายละเอียดรถ
-    const vehicleDetails = `${vehicle.registrationNumber} - ${vehicle.brand} ${vehicle.model}`;
+    const vehicleDetails = `${vehicle.registration_number} - ${vehicle.brand} ${vehicle.model}`;
     
     // ประเภทรถ และจำนวนล้อ
-    const vehicleTypeAndWheels = `${vehicle.type} - ${vehicle.wheelPositions} ล้อ`;
+    const vehicleTypeAndWheels = `${vehicle.type} - ${vehicle.wheel_positions} ล้อ`;
     
     return (
       <Card className="mt-6">
@@ -475,7 +464,7 @@ const TireInstallation = () => {
                       <SelectContent>
                         {vehicles.map((vehicle) => (
                           <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
+                            {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -554,7 +543,7 @@ const TireInstallation = () => {
                           <SelectContent>
                             {availableTires.map((tire) => (
                               <SelectItem key={tire.id} value={tire.id}>
-                                {tire.serialNumber} - {tire.brand} {tire.model}
+                                {tire.serial_number} - {tire.brand} {tire.model}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -624,7 +613,7 @@ const TireInstallation = () => {
                       <SelectContent>
                         {vehicles.map((vehicle) => (
                           <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.registrationNumber} - {vehicle.brand} {vehicle.model}
+                            {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -672,7 +661,7 @@ const TireInstallation = () => {
                           </DialogHeader>
                           <div className="py-4 space-y-4">
                             <p>คุณต้องการบันทึกการเปลี่ยน/สลับยางตามที่กำหนดไว้หรือไม่?</p>
-                            <p className="text-sm text-muted-foreground">รถทะเบียน: {vehicles.find(v => v.id === selectedVehicle)?.registrationNumber}</p>
+                            <p className="text-sm text-muted-foreground">รถทะเบียน: {vehicles.find(v => v.id === selectedVehicle)?.registration_number}</p>
                             <p className="text-sm text-muted-foreground">เลขไมล์: {mileage} กม.</p>
                           </div>
                           <DialogFooter>
@@ -733,7 +722,7 @@ const TireInstallation = () => {
                             <SelectItem value="new-tire" className="font-semibold">-- ยางใหม่ --</SelectItem>
                             {availableTires.map((tire) => (
                               <SelectItem key={tire.id} value={tire.id}>
-                                {tire.serialNumber} - {tire.brand} {tire.model}
+                                {tire.serial_number} - {tire.brand} {tire.model}
                               </SelectItem>
                             ))}
                             <SelectItem value="swap-tire" className="font-semibold">-- สลับจากตำแหน่งอื่น --</SelectItem>
