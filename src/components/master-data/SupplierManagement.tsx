@@ -3,34 +3,21 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogTrigger 
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Supplier } from "@/types/models";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
 
 const SupplierManagement = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSuppliers, setSelectedSuppliers] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     name: "",
     contactPerson: "",
@@ -40,6 +27,7 @@ const SupplierManagement = () => {
     notes: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { selectedIds, handleSelectAll, toggleSelection, clearSelection } = useMultiSelect(suppliers);
 
   const fetchSuppliers = async () => {
     try {
@@ -49,7 +37,18 @@ const SupplierManagement = () => {
         .order('name', { ascending: true });
 
       if (error) throw error;
-      setSuppliers(data || []);
+
+      const formattedSuppliers: Supplier[] = data.map(supplier => ({
+        id: supplier.id,
+        name: supplier.name,
+        contactPerson: supplier.contact_name,
+        phone: supplier.phone,
+        email: supplier.email || '',
+        address: supplier.address,
+        notes: supplier.notes || ''
+      }));
+
+      setSuppliers(formattedSuppliers);
     } catch (error: any) {
       toast({
         title: "เกิดข้อผิดพลาด",
@@ -107,22 +106,22 @@ const SupplierManagement = () => {
   };
 
   const handleDelete = async () => {
-    if (selectedSuppliers.size === 0) return;
+    if (selectedIds.size === 0) return;
     
     try {
       const { error } = await supabase
         .from('suppliers')
         .delete()
-        .in('id', Array.from(selectedSuppliers));
+        .in('id', Array.from(selectedIds));
 
       if (error) throw error;
 
       toast({
         title: "ลบสำเร็จ",
-        description: `ลบข้อมูลผู้จำหน่าย ${selectedSuppliers.size} รายการเรียบร้อยแล้ว`
+        description: `ลบข้อมูลผู้จำหน่าย ${selectedIds.size} รายการเรียบร้อยแล้ว`
       });
 
-      setSelectedSuppliers(new Set());
+      clearSelection();
       fetchSuppliers();
     } catch (error: any) {
       toast({
@@ -131,25 +130,6 @@ const SupplierManagement = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const allIds = filteredSuppliers.map(supplier => supplier.id);
-      setSelectedSuppliers(new Set(allIds));
-    } else {
-      setSelectedSuppliers(new Set());
-    }
-  };
-
-  const toggleSupplierSelection = (supplierId: string) => {
-    const newSelection = new Set(selectedSuppliers);
-    if (newSelection.has(supplierId)) {
-      newSelection.delete(supplierId);
-    } else {
-      newSelection.add(supplierId);
-    }
-    setSelectedSuppliers(newSelection);
   };
 
   const filteredSuppliers = suppliers.filter(supplier => 
@@ -258,13 +238,13 @@ const SupplierManagement = () => {
               </form>
             </DialogContent>
           </Dialog>
-          {selectedSuppliers.size > 0 && (
+          {selectedIds.size > 0 && (
             <Button
               variant="destructive"
               onClick={handleDelete}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              ลบที่เลือก ({selectedSuppliers.size})
+              ลบที่เลือก ({selectedIds.size})
             </Button>
           )}
         </div>
@@ -285,7 +265,7 @@ const SupplierManagement = () => {
                 <TableRow>
                   <TableHead className="w-[50px]">
                     <Checkbox
-                      checked={selectedSuppliers.size === filteredSuppliers.length && filteredSuppliers.length > 0}
+                      checked={selectedIds.size === filteredSuppliers.length && filteredSuppliers.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -302,8 +282,8 @@ const SupplierManagement = () => {
                     <TableRow key={supplier.id}>
                       <TableCell>
                         <Checkbox
-                          checked={selectedSuppliers.has(supplier.id)}
-                          onCheckedChange={() => toggleSupplierSelection(supplier.id)}
+                          checked={selectedIds.has(supplier.id)}
+                          onCheckedChange={() => toggleSelection(supplier.id)}
                         />
                       </TableCell>
                       <TableCell className="font-medium">{supplier.name}</TableCell>
